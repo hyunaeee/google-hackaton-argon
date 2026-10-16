@@ -34,6 +34,7 @@ function getOrCreateSessionId(): string {
 
 interface GameStore {
   sessionId: string;
+  lang: 'en' | 'ko';
   worldState: WorldState | null;
   loading: boolean;
   submittingAction: boolean;
@@ -58,6 +59,7 @@ interface GameStore {
   generatedEpisode: GeneratedWebtoonEpisode | null;
   generatingWebtoon: boolean;
 
+  setLang: (lang: 'en' | 'ko') => void;
   setCanvasCaptureFn: (fn: (() => string | null) | null) => void;
   setCaptureAllCameraShotsFn: (
     fn: (() => Promise<Partial<Record<CameraShotId, string>>>) | null
@@ -80,7 +82,10 @@ interface GameStore {
     }
   ) => void;
   captureAll3DCameraAngles: () => Promise<Partial<Record<CameraShotId, string>>>;
-  generateWebtoonEpisode: (styleId?: WebtoonStyleId) => Promise<void>;
+  generateWebtoonEpisode: (
+    styleId?: WebtoonStyleId,
+    langOverride?: 'en' | 'ko'
+  ) => Promise<void>;
 
   fetchInitialState: () => Promise<void>;
   submitPlayerAction: (playerInput: string, targetHint?: TargetId) => Promise<void>;
@@ -106,6 +111,7 @@ const DEFAULT_FALLBACK_SVG_DATA_URL = (label: string, accent = '#d97706') => {
 
 export const useGameStore = create<GameStore>((set, get) => ({
   sessionId: getOrCreateSessionId(),
+  lang: 'en',
   worldState: null,
   loading: false,
   submittingAction: false,
@@ -124,6 +130,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   generatedEpisode: null,
   generatingWebtoon: false,
 
+  setLang: (lang) => set({ lang }),
   setCanvasCaptureFn: (fn) => set({ canvasCaptureFn: fn }),
   setCaptureAllCameraShotsFn: (fn) => set({ captureAllCameraShotsFn: fn }),
   setSelectedWebtoonStyle: (style) => set({ selectedWebtoonStyle: style }),
@@ -173,8 +180,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  generateWebtoonEpisode: async (styleOverride?: WebtoonStyleId) => {
+  generateWebtoonEpisode: async (
+    styleOverride?: WebtoonStyleId,
+    langOverride?: 'en' | 'ko'
+  ) => {
     const styleId = styleOverride ?? get().selectedWebtoonStyle;
+    const lang = langOverride ?? get().lang;
     const sessionId = get().sessionId;
     set({
       selectedWebtoonStyle: styleId,
@@ -189,8 +200,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
         headers: {
           'Content-Type': 'application/json',
           'x-session-id': sessionId,
+          'x-lang': lang,
         },
-        body: JSON.stringify({ styleId }),
+        body: JSON.stringify({ styleId, lang }),
       });
       const data = await res.json();
       if (res.ok && data.ok && data.episode) {
@@ -209,9 +221,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   fetchInitialState: async () => {
     set({ loading: true, error: null });
     const sessionId = get().sessionId;
+    const lang = get().lang;
     try {
       const res = await fetch('/api/state', {
-        headers: { 'x-session-id': sessionId },
+        headers: { 'x-session-id': sessionId, 'x-lang': lang },
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -250,6 +263,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const trimmed = playerInput.trim();
     if (!trimmed || get().submittingAction) return;
     const sessionId = get().sessionId;
+    const lang = get().lang;
 
     set({ submittingAction: true, error: null });
 
@@ -259,10 +273,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         headers: {
           'Content-Type': 'application/json',
           'x-session-id': sessionId,
+          'x-lang': lang,
         },
         body: JSON.stringify({
           playerInput: trimmed,
           targetHint: targetHint ?? get().selectedTarget ?? undefined,
+          lang,
         }),
       });
 

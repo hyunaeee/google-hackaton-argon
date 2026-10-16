@@ -1,974 +1,1008 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Camera,
-  CheckCircle2,
-  Download,
-  Film,
-  Layers,
-  Palette,
-  RefreshCw,
-  Sparkles,
-  Wand2,
   X,
+  Download,
+  RefreshCw,
+  BookOpen,
+  Check,
+  FileText,
+  Eye,
+  Globe,
 } from 'lucide-react';
-import {
-  CameraShotId,
-  GeneratedWebtoonEpisode,
-  WebtoonCut,
-  WebtoonStyleId,
-} from '../../../shared/types';
 import { useGameStore } from '../store/useGameStore';
+import { CameraShotId, WebtoonStyleId } from '../../../shared/types';
 
-interface StyleOptionMeta {
-  id: WebtoonStyleId;
+export type ExtendedWebtoonStyleKey =
+  | 'NAVER_ROMANCE_IDOL'
+  | 'NAVER_KPOP_DEMON_HUNTERS'
+  | 'NAVER_HIGHTEEN_POP'
+  | 'NAVER_SHOWBIZ_DRAMA'
+  | 'NAVER_YOUTH_DRAMA'
+  | 'NAVER_RETRO_PURE'
+  | 'NAVER_CLEAN_MINIMAL'
+  | 'NAVER_ACTION_MANHWA'
+  | 'NAVER_DYNAMIC_BRUSH'
+  | 'NAVER_NOIR_STAGE'
+  | 'ORIGINAL_3D';
+
+interface StylePresetConfig {
+  key: ExtendedWebtoonStyleKey;
+  backendStyleId: WebtoonStyleId;
   nameKo: string;
   nameEn: string;
-  referenceWorks: string;
-  description: string;
-  badge: string;
-  previewImg: string;
-  accentBorder: string;
-  accentText: string;
-  cssFilter: string;
+  refWorkKo: string;
+  refWorkEn: string;
+  descKo: string;
+  descEn: string;
+  previewUrl: string;
+  canvasFilter: string;
+  tintColor: string;
+  tintAlpha: number;
+  paperBg: string;
+  headerBg: string;
+  accentHex: string;
 }
 
-export const WEBTOON_STYLE_OPTIONS: StyleOptionMeta[] = [
+const TEN_NAVER_STYLES: StylePresetConfig[] = [
   {
-    id: 'NAVER_ROMANCE_IDOL',
-    nameKo: '네이버 로맨스·아이돌 웹툰체',
-    nameEn: 'Naver Romance & Idol Webtoon',
-    referenceWorks: '레퍼런스: 〈여신강림〉 · 〈데뷔 못 하면 죽는 병 걸림〉',
-    description:
-      '반짝이는 보석 같은 눈망울, 유려한 선화, 화사한 마젠타·바이올렛 블룸 라이팅이 돋보이는 정통 아이돌 로맨스 웹툰 작화',
-    badge: '인기 1위 · 아이돌 순정',
-    previewImg: '/webtoon/style_romance_idol.png',
-    accentBorder: 'border-pink-400',
-    accentText: 'text-pink-300',
-    cssFilter: 'contrast(1.06) saturate(1.18)',
+    key: 'NAVER_ROMANCE_IDOL',
+    backendStyleId: 'NAVER_ROMANCE_IDOL',
+    nameKo: '1. 로맨스 아이돌 순정체',
+    nameEn: '1. Romance Idol Manhwa',
+    refWorkKo: '여신강림 · 데뷔 못 하면 죽는 병 걸림 풍',
+    refWorkEn: 'Ref: True Beauty · Debut or Die',
+    descKo: '화사한 피부톤과 정교한 이목구비, 따뜻한 조명 보정',
+    descEn: 'Warm luminous skin tones, expressive idol eyes & soft studio bloom',
+    previewUrl: '/webtoon/style_romance_idol.png',
+    canvasFilter: 'contrast(1.06) saturate(1.12) brightness(1.03)',
+    tintColor: '#f59e0b',
+    tintAlpha: 0.04,
+    paperBg: '#181614',
+    headerBg: '#221f1c',
+    accentHex: '#fbbf24',
   },
   {
-    id: 'NAVER_ACTION_MANHWA',
-    nameKo: '네이버 드라마틱 서스펜스·액션체',
-    nameEn: 'Dramatic Action & Suspense Manhwa',
-    referenceWorks: '레퍼런스: 〈나 혼자만 레벨업〉 · 〈전지적 독자 시점〉',
-    description:
-      '날카로운 펜선, 강렬한 시안·퍼플 림라이트, 긴박한 카운트다운 연출에 최적화된 고대비 웹툰 작화',
-    badge: '고몰입 · 서스펜스',
-    previewImg: '/webtoon/style_action_manhwa.png',
-    accentBorder: 'border-cyan-400',
-    accentText: 'text-cyan-300',
-    cssFilter: 'contrast(1.18) saturate(1.22)',
+    key: 'NAVER_KPOP_DEMON_HUNTERS',
+    backendStyleId: 'NAVER_ROMANCE_IDOL',
+    nameKo: '2. 케이팝 데몬 헌터스 3D체',
+    nameEn: '2. K-Pop Demon Hunters 3D',
+    refWorkKo: '소니 애니메이션 케이팝 데몬 헌터스 풍',
+    refWorkEn: 'Ref: K-Pop Demon Hunters Stylized 3D',
+    descKo: '세련된 V라인 3D 아이돌 조형과 입체적인 셀 셰이딩 질감',
+    descEn: 'Stylized 3D K-Pop idol proportions with painterly studio shading',
+    previewUrl: '/webtoon/style_kpop_demon_hunters.png',
+    canvasFilter: 'contrast(1.14) saturate(1.18) brightness(1.02)',
+    tintColor: '#d97706',
+    tintAlpha: 0.05,
+    paperBg: '#161412',
+    headerBg: '#1f1c19',
+    accentHex: '#f59e0b',
   },
   {
-    id: 'NAVER_YOUTH_DRAMA',
-    nameKo: '네이버 감성 청춘·어쿠스틱 드라마체',
-    nameEn: 'Warm Youth & Acoustic Webdrama',
-    referenceWorks: '레퍼런스: 〈청춘 블라썸〉 · 〈스피릿 핑거스〉',
-    description:
-      '따뜻한 수채화풍 셀 채색과 부드러운 골드·파스텔 톤으로 어쿠스틱 앙코르의 감동을 극대화하는 청춘 웹드라마 작화',
-    badge: '감성 힐링 · 어쿠스틱',
-    previewImg: '/webtoon/style_youth_drama.png',
-    accentBorder: 'border-amber-400',
-    accentText: 'text-amber-300',
-    cssFilter: 'contrast(1.03) saturate(1.08) sepia(0.08)',
+    key: 'NAVER_HIGHTEEN_POP',
+    backendStyleId: 'NAVER_ROMANCE_IDOL',
+    nameKo: '3. 하이틴 팝 로맨스체',
+    nameEn: '3. High-Teen Pop Romance',
+    refWorkKo: '작전명 순정 · 소녀의 세계 풍',
+    refWorkEn: 'Ref: Operation: True Love',
+    descKo: '선명한 최신 트렌드 펜선과 산뜻한 코랄·샴페인 색감',
+    descEn: 'Crisp modern line art with warm coral & champagne highlights',
+    previewUrl: '/webtoon/style_highteen_pop.png',
+    canvasFilter: 'contrast(1.08) saturate(1.16) brightness(1.04)',
+    tintColor: '#fb923c',
+    tintAlpha: 0.05,
+    paperBg: '#191615',
+    headerBg: '#241f1d',
+    accentHex: '#fdba74',
   },
   {
-    id: 'NAVER_NOIR_STAGE',
-    nameKo: '네이버 시네마틱 느와르·스릴러체',
-    nameEn: 'Cinematic Backstage Noir Manhwa',
-    referenceWorks: '레퍼런스: 〈내가 죽기로 결심한 것은〉 · 〈외모지상주의〉',
-    description:
-      '깊고 묵직한 명암 대비와 시네마틱 스포트라이트, 인물 내면의 긴장감을 세밀하게 포착하는 드라마틱 작화',
-    badge: '시네마틱 · 느와르',
-    previewImg: '/webtoon/style_noir_stage.png',
-    accentBorder: 'border-violet-400',
-    accentText: 'text-violet-300',
-    cssFilter: 'contrast(1.22) brightness(0.96)',
+    key: 'NAVER_SHOWBIZ_DRAMA',
+    backendStyleId: 'NAVER_ROMANCE_IDOL',
+    nameKo: '4. 쇼비즈니스 오피스 드라마체',
+    nameEn: '4. Showbiz Office Drama',
+    refWorkKo: '내 남편과 결혼해줘 · 사내맞선 풍',
+    refWorkEn: 'Ref: Marry My Husband · Business Proposal',
+    descKo: '깔끔한 수트핏과 화려한 무대 의상이 돋보이는 성숙한 작화',
+    descEn: 'Sharp tailored silhouettes and glamorous backstage studio lighting',
+    previewUrl: '/webtoon/style_showbiz_drama.png',
+    canvasFilter: 'contrast(1.10) saturate(1.08) brightness(1.02)',
+    tintColor: '#eab308',
+    tintAlpha: 0.04,
+    paperBg: '#171513',
+    headerBg: '#211e1b',
+    accentHex: '#fde047',
   },
   {
-    id: 'ORIGINAL_3D',
-    nameKo: '원래 3D 체험 화면 그대로',
-    nameEn: 'Original Live 3D WebGL Captures',
-    referenceWorks: '10개 멀티 카메라 앵글 실시간 3D 렌더링',
-    description:
-      '플레이어가 직접 체험한 3D 백스테이지 공간과 오브젝트 상태 변화를 10개의 시네마틱 카메라 앵글로 그대로 기록',
-    badge: '원본 3D · 리얼타임 캡처',
-    previewImg: '/references/backstage_room_concept.png',
-    accentBorder: 'border-emerald-400',
-    accentText: 'text-emerald-300',
-    cssFilter: 'none',
+    key: 'NAVER_YOUTH_DRAMA',
+    backendStyleId: 'NAVER_YOUTH_DRAMA',
+    nameKo: '5. 감성 청춘 드라마체',
+    nameEn: '5. Warm Youth Webdrama',
+    refWorkKo: '청춘 블라썸 · 연애혁명 풍',
+    refWorkEn: 'Ref: Seasons of Blossom',
+    descKo: '부드러운 수채화풍 음영과 포근한 백스테이지 채광',
+    descEn: 'Soft watercolor cel-shading and warm golden-hour emotional tones',
+    previewUrl: '/webtoon/style_youth_drama.png',
+    canvasFilter: 'contrast(1.02) saturate(1.05) sepia(0.08) brightness(1.04)',
+    tintColor: '#f59e0b',
+    tintAlpha: 0.06,
+    paperBg: '#1a1714',
+    headerBg: '#24201c',
+    accentHex: '#fcd34d',
+  },
+  {
+    key: 'NAVER_RETRO_PURE',
+    backendStyleId: 'NAVER_YOUTH_DRAMA',
+    nameKo: '6. 레트로 순정 만화체',
+    nameEn: '6. Retro Pure Manhwa',
+    refWorkKo: '세기말 풋사과 보습학원 · 치즈인더트랩 풍',
+    refWorkEn: 'Ref: After School Lessons for Unripe Apples',
+    descKo: '섬세한 펜선과 따뜻한 크림·피치 파스텔 톤의 아날로그 감성',
+    descEn: 'Delicate fine ink linework with nostalgic warm cream & peach tones',
+    previewUrl: '/webtoon/style_retro_pure.png',
+    canvasFilter: 'contrast(1.01) saturate(0.96) sepia(0.12) brightness(1.05)',
+    tintColor: '#fde68a',
+    tintAlpha: 0.07,
+    paperBg: '#1b1815',
+    headerBg: '#26221e',
+    accentHex: '#fde68a',
+  },
+  {
+    key: 'NAVER_CLEAN_MINIMAL',
+    backendStyleId: 'NAVER_YOUTH_DRAMA',
+    nameKo: '7. 모던 미니멀 일상체',
+    nameEn: '7. Clean Minimal Webtoon',
+    refWorkKo: '유미의 세포들 · 간 떨어지는 동거 풍',
+    refWorkEn: 'Ref: Yumi’s Cells',
+    descKo: '깔끔하고 정돈된 외곽선과 담백한 플랫 스튜디오 컬러링',
+    descEn: 'Clean modern outlines with balanced warm studio flat shading',
+    previewUrl: '/webtoon/style_clean_minimal.png',
+    canvasFilter: 'contrast(1.05) saturate(1.04) brightness(1.04)',
+    tintColor: '#fafaf9',
+    tintAlpha: 0.03,
+    paperBg: '#181615',
+    headerBg: '#221f1d',
+    accentHex: '#e7e5e4',
+  },
+  {
+    key: 'NAVER_ACTION_MANHWA',
+    backendStyleId: 'NAVER_ACTION_MANHWA',
+    nameKo: '8. 시네마틱 액션 극화체',
+    nameEn: '8. Cinematic Action Manhwa',
+    refWorkKo: '나 혼자만 레벨업 · 전지적 독자 시점 풍',
+    refWorkEn: 'Ref: Solo Leveling · Omniscient Reader',
+    descKo: '강렬한 명암 대비와 긴박한 쇼타임 직전 카메라 연출',
+    descEn: 'High-contrast ink shadows and tense pre-showtime camera dynamics',
+    previewUrl: '/webtoon/style_action_manhwa.png',
+    canvasFilter: 'contrast(1.22) saturate(1.10) brightness(0.98)',
+    tintColor: '#ea580c',
+    tintAlpha: 0.05,
+    paperBg: '#131110',
+    headerBg: '#1c1917',
+    accentHex: '#fb923c',
+  },
+  {
+    key: 'NAVER_DYNAMIC_BRUSH',
+    backendStyleId: 'NAVER_ACTION_MANHWA',
+    nameKo: '9. 다이나믹 브러시 펜선체',
+    nameEn: '9. Dynamic Brush-Ink Manhwa',
+    refWorkKo: '화산귀환 · 일렉시드 풍',
+    refWorkEn: 'Ref: Return of the Mount Hua Sect',
+    descKo: '생동감 넘치는 붓펜 터치와 골드 스포트라이트 하이라이트',
+    descEn: 'Expressive brush-ink strokes with warm gold spotlight highlights',
+    previewUrl: '/webtoon/style_dynamic_brush.png',
+    canvasFilter: 'contrast(1.18) saturate(1.14) sepia(0.05)',
+    tintColor: '#d97706',
+    tintAlpha: 0.06,
+    paperBg: '#151311',
+    headerBg: '#201c19',
+    accentHex: '#fbbf24',
+  },
+  {
+    key: 'NAVER_NOIR_STAGE',
+    backendStyleId: 'NAVER_NOIR_STAGE',
+    nameKo: '10. 시네마틱 스릴러 드라마체',
+    nameEn: '10. Noir Stage Drama',
+    refWorkKo: '외모지상주의 · 내가 죽기로 결심한 것은 풍',
+    refWorkEn: 'Ref: Lookism · Muse on Fame',
+    descKo: '묵직한 백스테이지 그림자와 영화적인 필름 톤 연출',
+    descEn: 'Deep backstage shadows, filmic grain & dramatic spotlight contrast',
+    previewUrl: '/webtoon/style_noir_stage.png',
+    canvasFilter: 'contrast(1.26) saturate(0.86) sepia(0.10) brightness(0.96)',
+    tintColor: '#78716c',
+    tintAlpha: 0.07,
+    paperBg: '#11100f',
+    headerBg: '#1a1816',
+    accentHex: '#d6d3d1',
+  },
+  {
+    key: 'ORIGINAL_3D',
+    backendStyleId: 'ORIGINAL_3D',
+    nameKo: '원본 3D 플레이 캡처 모드',
+    nameEn: 'Original 3D Scene Captures',
+    refWorkKo: '실시간 3D 대기실 멀티 앵글 캡처',
+    refWorkEn: 'Real-time 3D Multi-Angle Captures',
+    descKo: '플레이한 3D 화면 그대로 말풍선과 자막을 합성한 2K 세로 웹툰',
+    descEn: 'Your actual 3D backstage camera captures stitched at 2K resolution',
+    previewUrl: '/webtoon/cut_01.png',
+    canvasFilter: 'contrast(1.04) saturate(1.04)',
+    tintColor: '#d97706',
+    tintAlpha: 0.0,
+    paperBg: '#161412',
+    headerBg: '#211e1b',
+    accentHex: '#fcd34d',
   },
 ];
 
-// Quadrant crop coordinates (sx, sy, sw, sh normalized 0..1) + slight cinematic variation per cut
-const CUT_QUADRANT_CROPS: Record<
-  number,
-  { q: number; ox: number; oy: number; scale: number }
-> = {
-  1: { q: 0, ox: 0.0, oy: 0.0, scale: 1.0 },
-  2: { q: 0, ox: 0.06, oy: 0.04, scale: 0.88 },
-  3: { q: 1, ox: 0.0, oy: 0.0, scale: 1.0 },
-  4: { q: 1, ox: 0.05, oy: 0.08, scale: 0.86 },
-  5: { q: 1, ox: 0.02, oy: 0.02, scale: 0.92 },
-  6: { q: 2, ox: 0.0, oy: 0.0, scale: 1.0 },
-  7: { q: 2, ox: 0.05, oy: 0.05, scale: 0.88 },
-  8: { q: 2, ox: 0.02, oy: 0.08, scale: 0.9 },
-  9: { q: 3, ox: 0.0, oy: 0.0, scale: 1.0 },
-  10: { q: 3, ox: 0.03, oy: 0.02, scale: 0.92 },
-};
+// 8 Distinct Single-Panel NanoBanana Pro Cuts (Never repeated across the 8 cuts!)
+const DISTINCT_CUT_URLS: string[] = [
+  '/webtoon/cut_01.png',
+  '/webtoon/cut_02.png',
+  '/webtoon/cut_03.png',
+  '/webtoon/cut_04.png',
+  '/webtoon/cut_05.png',
+  '/webtoon/cut_06.png',
+  '/webtoon/cut_07.png',
+  '/webtoon/cut_08.png',
+];
 
-function buildClientFallbackEpisode(
-  worldState: NonNullable<ReturnType<typeof useGameStore.getState>['worldState']>,
-  styleId: WebtoonStyleId
-): GeneratedWebtoonEpisode {
-  const isAcoustic =
-    worldState.endingReached === 'UNPLUGGED_ENCORE' ||
-    (worldState.acousticBackupApproved && !worldState.hanaHasMicrophone);
-  const acceptedTurns = worldState.history.filter(
-    (h) => h.accepted && h.turnNumber > 0
-  );
-  const firstPlayerLine =
-    acceptedTurns[0]?.playerInput ||
-    'Hana, Jiho—tell me what happened to the Starlight Microphone!';
-  const midPlayerLine =
-    acceptedTurns[Math.floor(acceptedTurns.length / 2)]?.playerInput ||
-    (isAcoustic
-      ? "Let's rearrange the comeback as a live Unplugged Acoustic Encore!"
-      : 'I found the VIP Staff Access Card on the vanity desk—unlocking the locker now!');
-
-  return {
-    episodeSubtitle: isAcoustic
-      ? 'EP.01 — Five Minutes Before Showtime: Unplugged Heartbeat (완전판 10컷)'
-      : 'EP.01 — Five Minutes Before Showtime: Starlight Miracle (완전판 10컷)',
-    styleId,
-    endingType: worldState.endingReached,
-    authorComment: `작가의 말: 총 ${worldState.turnCount}번의 선택과 하나 신뢰도 ${worldState.relationships.hanaTrust}%·지호 신뢰도 ${worldState.relationships.jihoTrust}%로 완성된 당신만의 네이버 웹툰 1화 정식 연재본입니다!`,
-    cuts: [
-      {
-        cutNumber: 1,
-        actLabel: 'ACT 1 · OPENING CRISIS',
-        sceneTitle: '05:00 — 정적에 휩싸인 백스테이지',
-        cameraShotId: 'WIDE_ESTABLISHING',
-        quadrantIndex: 0,
-        sfxText: '두근—! 두근—!',
-        sfxSub: 'THUMP! THUMP!',
-        narratorCaption:
-          '컴백 쇼케이스 시작 5분 전. 화려한 네온 조명이 흐르는 LUMINA VIP 대기실에 긴박한 침묵이 내려앉았다.',
-        speaker: 'NARRATOR',
-        dialogue:
-          '스타라이트 아레나 2만 석의 함성이 문밖에서 파도처럼 밀려오는데... 메인 보컬 하나의 손이 비어 있다.',
-        innerMonologue:
-          '‘이대로 무대가 취소될 순 없어. 내가 도울 방법이 분명히 있을 거야.’',
-        moodColor: 'violet',
-      },
-      {
-        cutNumber: 2,
-        actLabel: 'ACT 1 · HANA IN DISTRESS',
-        sceneTitle: '사라진 커스텀 스타라이트 마이크',
-        cameraShotId: 'HANA_CLOSEUP',
-        quadrantIndex: 0,
-        sfxText: '파르르...',
-        sfxSub: 'TREMBLE...',
-        narratorCaption:
-          '무대 의상을 입은 하나가 초조하게 두 손을 꼭 쥔 채 거울 앞을 서성인다.',
-        speaker: 'HANA',
-        dialogue:
-          '“어떡하죠...? 제 커스텀 스타라이트 마이크가 감쪽같이 사라졌어요. 그 마이크 없이는 오프닝 고음을 절대 소화할 수 없는데!”',
-        innerMonologue: `플레이어의 첫 마디: "${firstPlayerLine}"`,
-        moodColor: 'magenta',
-      },
-      {
-        cutNumber: 3,
-        actLabel: 'ACT 2 · BACKSTAGE BRIEFING',
-        sceneTitle: '스테이지 매니저 지호의 단서',
-        cameraShotId: 'JIHO_BRIEFING',
-        quadrantIndex: 0,
-        sfxText: '치지직—!',
-        sfxSub: 'BZZT—! RADIO CALL',
-        narratorCaption:
-          '인이어 헤드셋을 붙잡은 지호가 땀이 맺힌 이마를 짚으며 큐시트를 확인한다.',
-        speaker: 'JIHO',
-        dialogue:
-          '“방금 음향팀 무전을 받았습니다! 배터리 긴급 점검 때문에 마이크를 보안 장비 락커에 넣어뒀다는데, 마스터 스태프 카드가 보이지 않아요!”',
-        innerMonologue:
-          '‘보안 락커를 열려면 VIP 스태프 출입 카드가 필요해... 아니면 전혀 다른 플랜 B를 세워야 한다!’',
-        moodColor: 'cyan',
-      },
-      {
-        cutNumber: 4,
-        actLabel: 'ACT 2 · CLUE TABLE',
-        sceneTitle: '라운지 테이블 위의 배터리 점검 일지',
-        cameraShotId: 'COFFEE_TABLE_CLUE',
-        quadrantIndex: 1,
-        sfxText: '펄럭—!',
-        sfxSub: 'RUSTLE!',
-        narratorCaption:
-          '커피 테이블 위 음향팀 점검 로그를 확인하자, 마지막 스태프 동선이 할리우드 조명 화장대 쪽으로 이어져 있었다.',
-        speaker: 'FAN',
-        dialogue:
-          '“잠깐만요! 여기 장비 점검 기록을 보세요. 마지막으로 스태프가 머문 곳은 바로 저 화장대 쪽이에요!”',
-        innerMonologue: '‘단서가 하나로 이어지고 있어. 서두르자!’',
-        moodColor: 'cyan',
-      },
-      {
-        cutNumber: 5,
-        actLabel: 'ACT 2 · VANITY MIRROR SEARCH',
-        sceneTitle: '할리우드 벌브 미러의 반사광',
-        cameraShotId: 'VANITY_CARD_DISCOVERY',
-        quadrantIndex: 1,
-        sfxText: '반짝—✦',
-        sfxSub: 'GLINT—✦',
-        narratorCaption:
-          '따뜻한 웜화이트 벌브 조명이 켜진 화장대 거울 아래, 아크릴 오거나이저 틈새로 홀로그램 빛이 반짝인다.',
-        speaker: 'HANA',
-        dialogue:
-          '“앗, 저기 향수병 옆에 반짝이는 거... 음향팀 마스터 VIP 스태프 카드 맞죠?!”',
-        innerMonologue: '‘찾았다! [VIP Staff Access Card] 획득!’',
-        moodColor: 'magenta',
-      },
-      {
-        cutNumber: 6,
-        actLabel: isAcoustic ? 'ACT 3 · ACOUSTIC PIVOT' : 'ACT 3 · LOCKER BREACH',
-        sceneTitle: isAcoustic
-          ? '과감한 결단: 언플러그드 어쿠스틱 편곡'
-          : 'RFID 보안 락커 해제 순간',
-        cameraShotId: isAcoustic
-          ? 'ACOUSTIC_GUITAR_CORNER'
-          : 'LOCKER_RFID_SCAN',
-        quadrantIndex: isAcoustic ? 1 : 2,
-        sfxText: isAcoustic ? '쩌렁—♪' : '삐빅— 철컥!',
-        sfxSub: isAcoustic ? 'STRUM—♪' : 'BEEP— CLICK!',
-        narratorCaption: isAcoustic
-          ? '잠긴 락커 대신 대기실 구석의 어쿠스틱 기타에 시선이 멈췄다. 위기를 전설적인 라이브 무대로 바꿀 순간이다.'
-          : 'RFID 리더기에 VIP 스태프 카드를 태그하자, 붉은 경고등이 에메랄드빛 녹색으로 바뀌며 육중한 철문이 열렸다.',
-        speaker: 'FAN',
-        dialogue: `“${midPlayerLine}”`,
-        innerMonologue: isAcoustic
-          ? '‘화려한 MR 대신 하나의 진짜 목소리를 들려주자!’'
-          : '‘열렸다! 락커 안쪽 폼 크래들에 마이크가 빛나고 있어!’',
-        moodColor: isAcoustic ? 'gold' : 'emerald',
-      },
-      {
-        cutNumber: 7,
-        actLabel: 'ACT 3 · TREASURE RECOVERED',
-        sceneTitle: isAcoustic
-          ? '6현의 울림, 완벽한 어쿠스틱 튜닝'
-          : '진주빛 스타라이트 마이크의 귀환',
-        cameraShotId: isAcoustic
-          ? 'ACOUSTIC_GUITAR_CORNER'
-          : 'MICROPHONE_REVEAL',
-        quadrantIndex: 2,
-        sfxText: isAcoustic ? '띠링—♬' : '화아아—✦',
-        sfxSub: isAcoustic ? 'HARMONIC—♬' : 'SHIMMER—✦',
-        narratorCaption: isAcoustic
-          ? '섬세하게 조율된 어쿠스틱 기타 줄이 따뜻한 골드빛 공명을 일으키며 대기실을 감싼다.'
-          : '펄 라일락 바디와 로즈골드 링이 빛나는 LUMINA 커스텀 스타라이트 마이크를 손에 쥐었다.',
-        speaker: 'JIHO',
-        dialogue: isAcoustic
-          ? '“기타 튜닝 완벽합니다! 무대 위 핀스폿 조명과 어쿠스틱 픽업 라인까지 즉시 연결 완료했습니다!”'
-          : '“배터리 잔량 100%, 주파수 간섭 제로! 지금 바로 하나에게 전달해 주세요!”',
-        innerMonologue: '‘이제 마지막 무대 준비만 남았다!’',
-        moodColor: isAcoustic ? 'gold' : 'violet',
-      },
-      {
-        cutNumber: 8,
-        actLabel: 'ACT 4 · SOUNDCHECK & HANDOFF',
-        sceneTitle: '인이어 모니터 싱크 & 진심의 교감',
-        cameraShotId: 'LOUNGE_SOFA_IEM',
-        quadrantIndex: 2,
-        sfxText: '징— 온에어!',
-        sfxSub: 'SYNC COMPLETE!',
-        narratorCaption:
-          '벨벳 소파 위의 무선 인이어 모니터(IEM) 팩까지 완벽히 동기화되자, 하나의 눈빛에 흔들림 없는 확신이 차오른다.',
-        speaker: 'HANA',
-        dialogue: isAcoustic
-          ? '“당신이 용기를 주지 않았다면 전 무대 위에서 얼어붙었을 거예요. 우리만의 특별한 어쿠스틱 무대, 함께 만들어요!”'
-          : '“마이크가 제 손에 돌아왔어요...! 정말 고마워요. 오늘 첫 소절은 오직 당신을 위해 부를게요!”',
-        innerMonologue: `하나 신뢰도 ${worldState.relationships.hanaTrust}% · 지호 신뢰도 ${worldState.relationships.jihoTrust}% 달성!`,
-        moodColor: 'magenta',
-      },
-      {
-        cutNumber: 9,
-        actLabel: 'ACT 5 · STAGE ENTRANCE',
-        sceneTitle: '01:00 — 열리는 STAGE / ON AIR 도어',
-        cameraShotId: 'STAGE_DOOR_OPENING',
-        quadrantIndex: 3,
-        sfxText: '쿠구구궁—!!',
-        sfxSub: 'ROOOAAAR—!!',
-        narratorCaption:
-          '네온 사인이 빛나는 방음 무대 문이 활짝 열리고, 그 너머로 보랏빛과 시안빛 레이저 빔이 폭포처럼 쏟아져 들어온다.',
-        speaker: 'JIHO',
-        dialogue:
-          '“스탠바이 완료! 큐 사인 떨어집니다— LUMINA, 지금 무대로 입장합니다!!”',
-        innerMonologue: '‘심장이 터질 것 같아. 드디어 쇼타임이다!’',
-        moodColor: 'cyan',
-      },
-      {
-        cutNumber: 10,
-        actLabel: 'ACT 5 · GRAND FINALE',
-        sceneTitle: isAcoustic
-          ? 'ENDING B — Unplugged Encore (전설이 된 어쿠스틱 앙코르)'
-          : 'ENDING A — Showtime Saved (별빛으로 물든 컴백 피날레)',
-        cameraShotId: 'FINALE_STAGE_BEAMS',
-        quadrantIndex: 3,
-        sfxText: '와아아아아—!! ✦',
-        sfxSub: 'CHEERS & CONFETTI!!',
-        narratorCaption: isAcoustic
-          ? '따뜻한 황금빛 스포트라이트 아래, 어쿠스틱 기타 선율과 하나의 투명한 보컬이 아레나 전체를 울린다.'
-          : '스타라이트 마이크를 높이 든 하나의 하이노트가 터져 나오자, 보랏빛 컨페티가 밤하늘의 은하수처럼 쏟아진다.',
-        speaker: 'HANA',
-        dialogue: isAcoustic
-          ? '“오늘 밤 이 어쿠스틱 기적을 만들어 준 단 한 사람에게, 이 노래를 바칩니다!”'
-          : '“기다려 주셔서 감사합니다! 지금까지 LUMINA였습니다— 오늘 밤, 우리의 우주가 시작됩니다!”',
-        innerMonologue: '— FANVERSE EP.01 [5분 전의 기적] END —',
-        moodColor: isAcoustic ? 'gold' : 'violet',
-      },
-    ],
-  };
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = (err) => reject(err);
+    img.src = src;
+  });
 }
 
-/**
- * Renders a single cut's visual artwork:
- * - If styleId === 'ORIGINAL_3D': displays the dedicated 3D camera angle capture for that cut.
- * - If styleId is one of the 4 Naver Webtoon styles:
- *   - Uses the high-res 4-quadrant Naver Webtoon illustration sheet cropped to that cut's scene quadrant,
- *     with an optional "3D 카메라 PIP 비교 보기" badge or hybrid toggle.
- */
-const WebtoonCutArtwork: React.FC<{
-  cut: WebtoonCut;
-  styleMeta: StyleOptionMeta;
-  frame3D?: string;
-  showHybrid3DInset: boolean;
-}> = ({ cut, styleMeta, frame3D, showHybrid3DInset }) => {
-  const isOriginal3D = styleMeta.id === 'ORIGINAL_3D';
-  const cropSpec = CUT_QUADRANT_CROPS[cut.cutNumber] || {
-    q: cut.quadrantIndex,
-    ox: 0,
-    oy: 0,
-    scale: 1,
-  };
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
 
-  // Quadrant background position for 2x2 grid sheet
-  const col = cropSpec.q % 2; // 0 = left, 1 = right
-  const row = Math.floor(cropSpec.q / 2); // 0 = top, 1 = bottom
-  const bgPosX = col === 0 ? `${8 + cropSpec.ox * 100}%` : `${92 - cropSpec.ox * 100}%`;
-  const bgPosY = row === 0 ? `${8 + cropSpec.oy * 100}%` : `${92 - cropSpec.oy * 100}%`;
-  const bgSize = `${Math.round(205 / cropSpec.scale)}%`;
+function wrapLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
 
-  const fallback3D =
-    cut.cutNumber % 2 === 0
-      ? '/references/interactive_props_sheet.png'
-      : '/references/backstage_room_concept.png';
-
-  return (
-    <div className="relative w-full h-[380px] sm:h-[430px] bg-[#080411] overflow-hidden select-none">
-      {isOriginal3D ? (
-        <img
-          src={frame3D || fallback3D}
-          alt={cut.sceneTitle}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div
-          className="w-full h-full bg-no-repeat transition-transform duration-500 hover:scale-[1.02]"
-          style={{
-            backgroundImage: `url(${styleMeta.previewImg})`,
-            backgroundSize: bgSize,
-            backgroundPosition: `${bgPosX} ${bgPosY}`,
-            filter: styleMeta.cssFilter,
-          }}
-        />
-      )}
-
-      {/* Subtle Webtoon Screentone & Vignette Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#090514] via-transparent to-black/35 pointer-events-none" />
-
-      {/* Top-Left Cut Number & Act Badge */}
-      <div className="absolute top-3.5 left-3.5 flex items-center gap-2">
-        <span className="px-2.5 py-1 rounded-md bg-black/85 border border-fuchsia-500/60 text-xs font-black tracking-wider text-fuchsia-300 shadow-lg">
-          CUT {String(cut.cutNumber).padStart(2, '0')} / 10
-        </span>
-        <span className="px-2.5 py-1 rounded-md bg-black/75 border border-purple-500/40 text-[11px] font-bold text-purple-200 backdrop-blur-md">
-          {cut.actLabel}
-        </span>
-      </div>
-
-      {/* Top-Right Camera Angle Tag */}
-      <div className="absolute top-3.5 right-3.5 px-2.5 py-1 rounded-md bg-black/75 border border-cyan-500/40 text-[10px] font-mono text-cyan-300 backdrop-blur-md">
-        CAM // {cut.cameraShotId}
-      </div>
-
-      {/* Floating Korean/English Manhwa SFX Typography */}
-      <div className="absolute bottom-4 left-4 pointer-events-none">
-        <div className="text-2xl sm:text-3xl font-black italic tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-fuchsia-200 to-pink-400 drop-shadow-[0_4px_12px_rgba(217,70,239,0.85)]">
-          {cut.sfxText}
-        </div>
-        <div className="text-[10px] font-black tracking-widest uppercase text-fuchsia-300/90 drop-shadow">
-          {cut.sfxSub}
-        </div>
-      </div>
-
-      {/* Optional 3D Scene PIP Inset when viewing in Naver Webtoon 2D Style */}
-      {!isOriginal3D && showHybrid3DInset && frame3D && (
-        <div className="absolute bottom-3.5 right-3.5 w-36 h-22 rounded-lg overflow-hidden border-2 border-cyan-400/80 shadow-xl bg-black/90">
-          <img
-            src={frame3D}
-            alt="3D Camera Source"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute bottom-0 inset-x-0 bg-black/80 text-[9px] font-bold text-center text-cyan-200 py-0.5">
-            원본 3D 앵글 #{cut.cutNumber}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+  for (const word of words) {
+    const test = current ? `${current} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines : [text];
+}
 
 export const WebtoonModal: React.FC = () => {
-  const isOpen = useGameStore((s) => s.isWebtoonModalOpen);
-  const setIsOpen = useGameStore((s) => s.setIsWebtoonModalOpen);
-  const worldState = useGameStore((s) => s.worldState);
-  const selectedStyle = useGameStore((s) => s.selectedWebtoonStyle);
-  const setSelectedStyle = useGameStore((s) => s.setSelectedWebtoonStyle);
-  const generatedEpisode = useGameStore((s) => s.generatedEpisode);
-  const generatingWebtoon = useGameStore((s) => s.generatingWebtoon);
-  const generateWebtoonEpisode = useGameStore((s) => s.generateWebtoonEpisode);
-  const multiAngle3DFrames = useGameStore((s) => s.multiAngle3DFrames);
-  const captureAll3DCameraAngles = useGameStore(
-    (s) => s.captureAll3DCameraAngles
-  );
+  const {
+    lang,
+    setLang,
+    isWebtoonModalOpen,
+    setIsWebtoonModalOpen,
+    worldState,
+    multiAngle3DFrames,
+    generatedEpisode,
+    generatingWebtoon,
+    generateWebtoonEpisode,
+  } = useGameStore();
 
-  // Two-step UX: 'STYLE_PICKER' before generation, 'EPISODE_READER' once chosen
-  const [viewMode, setViewMode] = useState<'STYLE_PICKER' | 'EPISODE_READER'>(
-    'STYLE_PICKER'
-  );
-  const [showHybrid3DInset, setShowHybrid3DInset] = useState(true);
-  const [downloading, setDownloading] = useState(false);
+  const isKo = lang === 'ko';
 
-  // Capture all 10 3D camera angles when modal opens so previews & cuts have live 3D shots ready
+  const [selectedPresetKey, setSelectedPresetKey] =
+    useState<ExtendedWebtoonStyleKey>('NAVER_ROMANCE_IDOL');
+  const [showPromptDetails, setShowPromptDetails] = useState(false);
+  const [stitched2KDataUrl, setStitched2KDataUrl] = useState<string | null>(
+    null
+  );
+  const [stitchingCanvas, setStitchingCanvas] = useState(false);
+
+  const activePreset =
+    TEN_NAVER_STYLES.find((s) => s.key === selectedPresetKey) ??
+    TEN_NAVER_STYLES[0];
+
+  // Trigger episode generation when opened or when language changes
   useEffect(() => {
-    if (isOpen) {
-      captureAll3DCameraAngles();
+    if (isWebtoonModalOpen && !generatedEpisode && !generatingWebtoon) {
+      generateWebtoonEpisode(activePreset.backendStyleId, lang);
     }
-  }, [isOpen, captureAll3DCameraAngles]);
+  }, [
+    isWebtoonModalOpen,
+    generatedEpisode,
+    generatingWebtoon,
+    activePreset.backendStyleId,
+    lang,
+    generateWebtoonEpisode,
+  ]);
 
-  const activeStyleMeta = useMemo(
-    () =>
-      WEBTOON_STYLE_OPTIONS.find((s) => s.id === selectedStyle) ??
-      WEBTOON_STYLE_OPTIONS[0],
-    [selectedStyle]
-  );
-
-  const episodeToRender = useMemo<GeneratedWebtoonEpisode | null>(() => {
-    if (!worldState) return null;
-    if (generatedEpisode && generatedEpisode.styleId === selectedStyle) {
-      return generatedEpisode;
-    }
-    return buildClientFallbackEpisode(worldState, selectedStyle);
-  }, [worldState, generatedEpisode, selectedStyle]);
-
-  if (!isOpen || !worldState || !episodeToRender) return null;
-
-  const handleStartEpisodeGeneration = async (styleId: WebtoonStyleId) => {
-    setSelectedStyle(styleId);
-    setViewMode('EPISODE_READER');
-    await generateWebtoonEpisode(styleId);
+  const handleSelectPreset = async (preset: StylePresetConfig) => {
+    setSelectedPresetKey(preset.key);
+    await generateWebtoonEpisode(preset.backendStyleId, lang);
   };
 
-  const handleDownloadFullEpisodePng = async () => {
-    setDownloading(true);
-    try {
-      const cuts = episodeToRender.cuts;
-      const canvas = document.createElement('canvas');
-      const width = 920;
-      const cutBlockHeight = 670;
-      const headerHeight = 190;
-      const footerHeight = 130;
-      canvas.width = width;
-      canvas.height = headerHeight + cuts.length * cutBlockHeight + footerHeight;
+  const handleToggleLanguage = async (nextLang: 'en' | 'ko') => {
+    setLang(nextLang);
+    await generateWebtoonEpisode(activePreset.backendStyleId, nextLang);
+  };
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+  // Build 2K (2048px wide) single continuous vertical webtoon canvas with speech bubbles inside
+  useEffect(() => {
+    if (!isWebtoonModalOpen || !generatedEpisode) return;
 
-      // Vertical Webtoon Dark Canvas Background
-      const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      grad.addColorStop(0, '#06030d');
-      grad.addColorStop(0.5, '#110722');
-      grad.addColorStop(1, '#06030d');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, canvas.height);
+    let cancelled = false;
+    const render2KVerticalWebtoon = async () => {
+      setStitchingCanvas(true);
+      try {
+        const cuts = generatedEpisode.cuts;
+        const W = 2048; // True 2K horizontal resolution
+        const PAD_X = 120;
+        const PANEL_W = W - PAD_X * 2; // 1808px panel width
+        const PANEL_H = 1280;
+        const GUTTER_H = 150;
+        const HEADER_H = 440;
+        const STYLE_BANNER_H = 540;
+        const FOOTER_H = 260;
 
-      // Header Banner
-      ctx.fillStyle = '#d946ef';
-      ctx.font = 'bold 20px sans-serif';
-      ctx.fillText(
-        `FANVERSE WEBTOON // ${activeStyleMeta.nameKo} (${cuts.length} CUTS FULL EPISODE)`,
-        48,
-        54
-      );
+        const totalHeight =
+          HEADER_H +
+          (activePreset.key !== 'ORIGINAL_3D' ? STYLE_BANNER_H : 0) +
+          cuts.length * (PANEL_H + GUTTER_H) +
+          FOOTER_H;
 
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 34px sans-serif';
-      ctx.fillText(episodeToRender.episodeSubtitle.slice(0, 52), 48, 102);
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = totalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 18px sans-serif';
-      ctx.fillText(
-        `Ending: ${worldState.endingReached}  •  Turns: ${worldState.turnCount}  •  Hana Trust: ${worldState.relationships.hanaTrust}%  •  Jiho Trust: ${worldState.relationships.jihoTrust}%`,
-        48,
-        142
-      );
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
-      const loadImage = (src: string): Promise<HTMLImageElement> =>
-        new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-          img.src = src;
-        });
+        // 1. Warm Studio Charcoal Background (No Cyberpunk Colors!)
+        ctx.fillStyle = activePreset.paperBg;
+        ctx.fillRect(0, 0, W, totalHeight);
 
-      const styleSheetImg =
-        selectedStyle !== 'ORIGINAL_3D'
-          ? await loadImage(activeStyleMeta.previewImg).catch(() => null)
-          : null;
+        // 2. Editorial Header Banner
+        ctx.fillStyle = activePreset.headerBg;
+        ctx.fillRect(0, 0, W, HEADER_H - 40);
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(PAD_X, HEADER_H - 40);
+        ctx.lineTo(W - PAD_X, HEADER_H - 40);
+        ctx.stroke();
 
-      for (let i = 0; i < cuts.length; i++) {
-        const cut = cuts[i];
-        const yTop = headerHeight + i * cutBlockHeight;
-
-        // Cut Outer Card
-        ctx.fillStyle = '#0d071b';
-        ctx.strokeStyle = '#a855f7';
-        ctx.lineWidth = 2;
-        ctx.fillRect(44, yTop + 10, width - 88, cutBlockHeight - 24);
-        ctx.strokeRect(44, yTop + 10, width - 88, cutBlockHeight - 24);
-
-        const imgX = 52;
-        const imgY = yTop + 18;
-        const imgW = width - 104;
-        const imgH = 400;
-
-        if (selectedStyle === 'ORIGINAL_3D' || !styleSheetImg) {
-          const shotSrc =
-            multiAngle3DFrames[cut.cameraShotId as CameraShotId] ||
-            '/references/backstage_room_concept.png';
-          try {
-            const shotImg = await loadImage(shotSrc);
-            ctx.drawImage(shotImg, imgX, imgY, imgW, imgH);
-          } catch {
-            ctx.fillStyle = '#1b0f30';
-            ctx.fillRect(imgX, imgY, imgW, imgH);
-          }
-        } else {
-          // Crop quadrant from the 2x2 Naver Webtoon Style Sheet
-          const crop = CUT_QUADRANT_CROPS[cut.cutNumber] || {
-            q: cut.quadrantIndex,
-            ox: 0,
-            oy: 0,
-            scale: 1,
-          };
-          const col = crop.q % 2;
-          const row = Math.floor(crop.q / 2);
-          const halfW = styleSheetImg.width / 2;
-          const halfH = styleSheetImg.height / 2;
-          const sx = col * halfW + crop.ox * halfW * 0.4;
-          const sy = row * halfH + crop.oy * halfH * 0.4;
-          const sw = halfW * crop.scale;
-          const sh = halfH * crop.scale;
-          ctx.drawImage(styleSheetImg, sx, sy, sw, sh, imgX, imgY, imgW, imgH);
-        }
-
-        // Cut Header Pill
-        ctx.fillStyle = 'rgba(9, 5, 20, 0.88)';
-        ctx.fillRect(68, imgY + 14, 480, 38);
-        ctx.fillStyle = '#f0abfc';
-        ctx.font = 'bold 17px sans-serif';
+        // Top badge
+        ctx.fillStyle = activePreset.accentHex;
+        ctx.font = 'bold 30px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
         ctx.fillText(
-          `CUT ${String(cut.cutNumber).padStart(2, '0')} // ${cut.sceneTitle}`,
-          82,
-          imgY + 39
+          isKo
+            ? `FANVERSE 2K 오리지널 웹툰  ·  ${activePreset.nameKo} (${activePreset.refWorkKo})`
+            : `FANVERSE 2K ORIGINAL WEBTOON  ·  ${activePreset.nameEn} (${activePreset.refWorkEn})`,
+          PAD_X,
+          120
         );
 
-        // SFX Text
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold italic 28px sans-serif';
-        ctx.fillText(cut.sfxText, 72, imgY + imgH - 22);
+        // Main Title
+        ctx.fillStyle = '#fafaf9';
+        ctx.font = '800 68px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+        ctx.fillText(generatedEpisode.episodeTitle, PAD_X, 220);
 
-        // Narrator Box
-        ctx.fillStyle = '#cbd5e1';
-        ctx.font = 'italic 16px sans-serif';
-        ctx.fillText(cut.narratorCaption.slice(0, 68), 64, yTop + 448);
+        // Subtitle
+        ctx.fillStyle = '#a8a29e';
+        ctx.font = '500 34px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+        ctx.fillText(
+          `${generatedEpisode.subtitle}   |   2048px 2K Ultra HD Vertical Strip`,
+          PAD_X,
+          295
+        );
 
-        // Speech Bubble
-        ctx.fillStyle = '#170c2e';
-        ctx.strokeStyle = '#ec4899';
-        ctx.lineWidth = 2;
-        ctx.fillRect(64, yTop + 468, width - 128, 108);
-        ctx.strokeRect(64, yTop + 468, width - 128, 108);
+        let cursorY = HEADER_H;
 
-        ctx.fillStyle = '#f472b6';
-        ctx.font = 'bold 16px sans-serif';
-        ctx.fillText(`${cut.speaker}`, 84, yTop + 496);
+        // 3. Optional Style Hero Showcase Strip at top of webtoon
+        if (activePreset.key !== 'ORIGINAL_3D') {
+          try {
+            const styleHeroImg = await loadImage(activePreset.previewUrl);
+            ctx.save();
+            drawRoundedRect(
+              ctx,
+              PAD_X,
+              cursorY,
+              PANEL_W,
+              STYLE_BANNER_H - 70,
+              28
+            );
+            ctx.clip();
+            const scale = Math.max(
+              PANEL_W / styleHeroImg.width,
+              (STYLE_BANNER_H - 70) / styleHeroImg.height
+            );
+            const dw = styleHeroImg.width * scale;
+            const dh = styleHeroImg.height * scale;
+            ctx.drawImage(
+              styleHeroImg,
+              PAD_X + (PANEL_W - dw) / 2,
+              cursorY + (STYLE_BANNER_H - 70 - dh) / 2,
+              dw,
+              dh
+            );
+            // Warm studio gradient overlay
+            const grad = ctx.createLinearGradient(
+              0,
+              cursorY + STYLE_BANNER_H - 260,
+              0,
+              cursorY + STYLE_BANNER_H - 70
+            );
+            grad.addColorStop(0, 'rgba(20,18,16,0)');
+            grad.addColorStop(1, 'rgba(20,18,16,0.92)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(PAD_X, cursorY, PANEL_W, STYLE_BANNER_H - 70);
 
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '18px sans-serif';
-        ctx.fillText(cut.dialogue.slice(0, 62), 84, yTop + 526);
-        if (cut.dialogue.length > 62) {
-          ctx.fillText(cut.dialogue.slice(62, 124), 84, yTop + 552);
+            ctx.fillStyle = activePreset.accentHex;
+            ctx.font =
+              'bold 28px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+            ctx.fillText(
+              isKo
+                ? `선택한 그림체 프리뷰: ${activePreset.nameKo}`
+                : `Selected Art Style: ${activePreset.nameEn}`,
+              PAD_X + 44,
+              cursorY + STYLE_BANNER_H - 155
+            );
+            ctx.fillStyle = '#f5f5f4';
+            ctx.font =
+              '500 32px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+            ctx.fillText(
+              isKo ? activePreset.descKo : activePreset.descEn,
+              PAD_X + 44,
+              cursorY + STYLE_BANNER_H - 105
+            );
+            ctx.restore();
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+            ctx.lineWidth = 4;
+            drawRoundedRect(
+              ctx,
+              PAD_X,
+              cursorY,
+              PANEL_W,
+              STYLE_BANNER_H - 70,
+              28
+            );
+            ctx.stroke();
+          } catch {
+            // ignore preview load failure
+          }
+          cursorY += STYLE_BANNER_H;
         }
 
-        // Inner Monologue
-        ctx.fillStyle = '#a78bfa';
-        ctx.font = '15px sans-serif';
-        ctx.fillText(cut.innerMonologue.slice(0, 72), 64, yTop + 610);
+        // 4. Render each of the 8 sequential cuts with distinct artwork + embedded speech bubbles
+        for (let i = 0; i < cuts.length; i++) {
+          const cut = cuts[i];
+          const panelX = PAD_X;
+          const panelY = cursorY;
+
+          // Determine source image: Original 3D capture or distinct NanoBanana Pro cut_01..cut_08
+          const shot3D =
+            multiAngle3DFrames[cut.cameraShotId as CameraShotId] ?? null;
+          const distinctCutUrl =
+            DISTINCT_CUT_URLS[i % DISTINCT_CUT_URLS.length];
+          const primarySrc =
+            activePreset.key === 'ORIGINAL_3D' && shot3D
+              ? shot3D
+              : distinctCutUrl;
+
+          let img: HTMLImageElement | null = null;
+          try {
+            img = await loadImage(primarySrc);
+          } catch {
+            try {
+              img = await loadImage(distinctCutUrl);
+            } catch {
+              img = null;
+            }
+          }
+
+          // Panel frame & artwork
+          ctx.save();
+          drawRoundedRect(ctx, panelX, panelY, PANEL_W, PANEL_H, 24);
+          ctx.clip();
+
+          if (img) {
+            ctx.filter = activePreset.canvasFilter;
+            const scale = Math.max(PANEL_W / img.width, PANEL_H / img.height);
+            const dw = img.width * scale;
+            const dh = img.height * scale;
+            const dx = panelX + (PANEL_W - dw) / 2;
+            const dy = panelY + (PANEL_H - dh) / 2;
+            ctx.drawImage(img, dx, dy, dw, dh);
+            ctx.filter = 'none';
+          } else {
+            ctx.fillStyle = '#292524';
+            ctx.fillRect(panelX, panelY, PANEL_W, PANEL_H);
+          }
+
+          // Subtle style color wash
+          if (activePreset.tintAlpha > 0) {
+            ctx.fillStyle = activePreset.tintColor;
+            ctx.globalAlpha = activePreset.tintAlpha;
+            ctx.fillRect(panelX, panelY, PANEL_W, PANEL_H);
+            ctx.globalAlpha = 1.0;
+          }
+
+          // Top & bottom soft vignette for readability of narration/speech bubbles
+          const topGrad = ctx.createLinearGradient(
+            0,
+            panelY,
+            0,
+            panelY + 260
+          );
+          topGrad.addColorStop(0, 'rgba(15,13,12,0.72)');
+          topGrad.addColorStop(1, 'rgba(15,13,12,0)');
+          ctx.fillStyle = topGrad;
+          ctx.fillRect(panelX, panelY, PANEL_W, 260);
+
+          const botGrad = ctx.createLinearGradient(
+            0,
+            panelY + PANEL_H - 380,
+            0,
+            panelY + PANEL_H
+          );
+          botGrad.addColorStop(0, 'rgba(15,13,12,0)');
+          botGrad.addColorStop(1, 'rgba(15,13,12,0.78)');
+          ctx.fillStyle = botGrad;
+          ctx.fillRect(panelX, panelY + PANEL_H - 380, PANEL_W, 380);
+
+          // Top-left Cut Number & Timestamp Caption Box (Rectangular Webtoon Narration Box)
+          ctx.font =
+            '500 30px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+          const narrationLines = wrapLines(ctx, cut.narration, PANEL_W - 220);
+          const narBoxW = Math.min(PANEL_W - 100, 1460);
+          const narBoxH = 86 + narrationLines.length * 44;
+          const narX = panelX + 48;
+          const narY = panelY + 42;
+
+          ctx.fillStyle = 'rgba(24, 22, 20, 0.90)';
+          drawRoundedRect(ctx, narX, narY, narBoxW, narBoxH, 16);
+          ctx.fill();
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+          ctx.stroke();
+
+          ctx.fillStyle = activePreset.accentHex;
+          ctx.font =
+            'bold 24px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+          ctx.fillText(
+            `CUT 0${cut.cutNumber}  ·  ${cut.timestampBadge}  ·  ${cut.sceneTitle}`,
+            narX + 32,
+            narY + 42
+          );
+
+          ctx.fillStyle = '#f5f5f4';
+          ctx.font =
+            '500 30px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+          narrationLines.forEach((line, idx) => {
+            ctx.fillText(line, narX + 32, narY + 88 + idx * 42);
+          });
+
+          // Authentic Webtoon Speech Bubble (말풍선) with Tail inside the panel
+          if (cut.dialogue && cut.dialogue.trim().length > 0) {
+            ctx.font =
+              '700 36px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+            const maxBubbleTextW = 1140;
+            const dlgLines = wrapLines(ctx, cut.dialogue, maxBubbleTextW);
+            const longestLineW = dlgLines.reduce(
+              (max, l) => Math.max(max, ctx.measureText(l).width),
+              360
+            );
+            const bubbleW = Math.min(PANEL_W - 140, longestLineW + 130);
+            const bubbleH = 95 + dlgLines.length * 50;
+
+            const isRightSide = i % 2 === 1;
+            const bubbleX = isRightSide
+              ? panelX + PANEL_W - bubbleW - 64
+              : panelX + 64;
+            const bubbleY = panelY + PANEL_H - bubbleH - 64;
+
+            // Drop shadow
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
+            ctx.shadowBlur = 28;
+            ctx.shadowOffsetY = 10;
+
+            // Speech bubble body + pointer tail
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#1c1917';
+            ctx.lineWidth = 5;
+
+            drawRoundedRect(ctx, bubbleX, bubbleY, bubbleW, bubbleH, 42);
+            ctx.fill();
+            ctx.stroke();
+
+            // Comic pointer tail pointing up toward the character
+            const tailBaseX = isRightSide
+              ? bubbleX + bubbleW * 0.72
+              : bubbleX + bubbleW * 0.28;
+            ctx.beginPath();
+            ctx.moveTo(tailBaseX - 24, bubbleY + 3);
+            ctx.lineTo(tailBaseX + (isRightSide ? 18 : -18), bubbleY - 42);
+            ctx.lineTo(tailBaseX + 24, bubbleY + 3);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+
+            // Cover seam inside bubble
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(tailBaseX - 21, bubbleY, 42, 8);
+
+            // Speaker Pill Badge on top edge of speech bubble
+            const speakerText =
+              cut.speaker === 'HANA'
+                ? isKo
+                  ? '하나 (HANA)'
+                  : 'HANA'
+                : cut.speaker === 'JIHO'
+                  ? isKo
+                    ? '지호 (JIHO)'
+                    : 'JIHO'
+                  : cut.speaker === 'PROTAGONIST'
+                    ? isKo
+                      ? '주인공 매니저'
+                      : 'MANAGER (YOU)'
+                    : cut.speaker;
+
+            ctx.font =
+              'bold 24px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+            const spkW = ctx.measureText(speakerText).width + 48;
+            const spkX = bubbleX + 42;
+            const spkY = bubbleY - 22;
+
+            ctx.fillStyle = '#1c1917';
+            drawRoundedRect(ctx, spkX, spkY, spkW, 44, 22);
+            ctx.fill();
+            ctx.strokeStyle = activePreset.accentHex;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.fillStyle = activePreset.accentHex;
+            ctx.fillText(speakerText, spkX + 24, spkY + 30);
+
+            // Dialogue text inside bubble
+            ctx.fillStyle = '#1c1917';
+            ctx.font =
+              '700 36px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+            dlgLines.forEach((line, idx) => {
+              ctx.fillText(line, bubbleX + 56, bubbleY + 76 + idx * 50);
+            });
+          }
+
+          ctx.restore();
+
+          // Crisp panel border
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+          ctx.lineWidth = 4;
+          drawRoundedRect(ctx, panelX, panelY, PANEL_W, PANEL_H, 24);
+          ctx.stroke();
+
+          cursorY += PANEL_H + GUTTER_H;
+        }
+
+        // 5. Footer Credits
+        ctx.fillStyle = '#a8a29e';
+        ctx.font =
+          '600 30px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(
+          generatedEpisode.endingBanner,
+          W / 2,
+          cursorY + 70
+        );
+        ctx.fillStyle = '#78716c';
+        ctx.font =
+          '500 24px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+        ctx.fillText(
+          'FANVERSE · Gemini 4 Argon Verified State Engine + NanoBanana Pro 2K Webtoon Pipeline',
+          W / 2,
+          cursorY + 125
+        );
+        ctx.textAlign = 'left';
+
+        if (!cancelled) {
+          setStitched2KDataUrl(canvas.toDataURL('image/png'));
+          setStitchingCanvas(false);
+        }
+      } catch {
+        if (!cancelled) setStitchingCanvas(false);
       }
+    };
 
-      const yFooter = headerHeight + cuts.length * cutBlockHeight + 48;
-      ctx.fillStyle = '#f0abfc';
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText(episodeToRender.authorComment.slice(0, 80), 48, yFooter);
+    render2KVerticalWebtoon();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isWebtoonModalOpen,
+    generatedEpisode,
+    activePreset,
+    multiAngle3DFrames,
+    isKo,
+  ]);
 
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '14px sans-serif';
-      ctx.fillText(
-        'Generated by FANVERSE — Gemini 4 Argon Story Director & Multi-Camera 3D Webtoon Engine',
-        48,
-        yFooter + 32
-      );
+  if (!isWebtoonModalOpen) return null;
 
-      const pngUrl = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = pngUrl;
-      a.download = `fanverse-ep01-${selectedStyle.toLowerCase()}-10cuts.png`;
-      a.click();
-    } finally {
-      setDownloading(false);
-    }
+  const handleDownload2KImage = () => {
+    if (!stitched2KDataUrl) return;
+    const link = document.createElement('a');
+    link.href = stitched2KDataUrl;
+    link.download = `fanverse-ep01-2K-${activePreset.key.toLowerCase()}-${lang}.png`;
+    link.click();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-3 sm:p-5">
-      <div className="relative w-full max-w-5xl max-h-[94vh] flex flex-col rounded-2xl bg-[#090514] border border-fuchsia-500/50 shadow-2xl overflow-hidden">
-        {/* Top Studio Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 bg-gradient-to-r from-fuchsia-950/85 via-purple-950/85 to-indigo-950/85 border-b border-fuchsia-500/30">
-          <div>
-            <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-fuchsia-300">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>
-                FANVERSE WEBTOON STUDIO // 일반 웹툰 1화 분량 (10컷 완전판)
-              </span>
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 select-none">
+      {/* Main Modal Container — Warm Charcoal & Ivory Tone matching main screen */}
+      <div className="w-full max-w-6xl h-[92vh] rounded-2xl bg-[#141210] border border-white/12 shadow-2xl flex flex-col overflow-hidden text-stone-100">
+        {/* Top Modal Header */}
+        <div className="px-5 py-3.5 bg-stone-950 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-stone-900 border border-amber-300/30 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-amber-300" />
             </div>
-            <h2 className="text-lg sm:text-xl font-extrabold text-white mt-0.5">
-              {episodeToRender.episodeSubtitle}
-            </h2>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-stone-100">
+                  {isKo
+                    ? '개인화 웹툰 1화 생성기 (2K 초고화질 · 10종 네이버 웹툰체)'
+                    : 'Episode 01 Personalized 2K Webtoon Studio (10 Naver Webtoon Styles)'}
+                </h2>
+                <span className="px-2 py-0.5 rounded bg-amber-300/15 border border-amber-300/40 text-amber-200 text-[10px] font-mono font-bold">
+                  2048px 2K CANVAS
+                </span>
+              </div>
+              <p className="text-xs text-stone-400">
+                {isKo
+                  ? '나노바나나 프로 개별 8컷 원화와 대사 말풍선이 하나의 길쭉한 2K 웹툰 이미지로 합성됩니다'
+                  : '8 distinct NanoBanana Pro panels & comic speech bubbles stitched into one continuous 2K vertical webtoon image'}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Switch between Pre-Generation Style Picker and 10-Cut Episode Reader */}
+            {/* Language Selector inside Webtoon Modal */}
+            <div className="inline-flex items-center rounded-lg bg-stone-900 border border-white/15 p-0.5 text-xs font-bold">
+              <Globe className="w-3.5 h-3.5 text-stone-400 ml-2 mr-1" />
+              <button
+                onClick={() => handleToggleLanguage('en')}
+                className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                  lang === 'en'
+                    ? 'bg-amber-300 text-stone-950'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                🇺🇸 EN
+              </button>
+              <button
+                onClick={() => handleToggleLanguage('ko')}
+                className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                  lang === 'ko'
+                    ? 'bg-amber-300 text-stone-950'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                🇰🇷 한국어
+              </button>
+            </div>
+
             <button
-              onClick={() =>
-                setViewMode(
-                  viewMode === 'STYLE_PICKER'
-                    ? 'EPISODE_READER'
-                    : 'STYLE_PICKER'
-                )
-              }
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-900/60 hover:bg-purple-800/80 text-xs font-bold text-purple-100 border border-purple-400/40 cursor-pointer transition"
+              onClick={() => setShowPromptDetails(!showPromptDetails)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                showPromptDetails
+                  ? 'bg-stone-800 border-amber-300/50 text-amber-200'
+                  : 'bg-stone-900 border-white/10 text-stone-300 hover:bg-stone-800'
+              }`}
             >
-              <Palette className="w-3.5 h-3.5 text-fuchsia-300" />
+              {showPromptDetails ? (
+                <>
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{isKo ? '웹툰 이미지 보기' : 'View 2K Webtoon'}</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{isKo ? '8컷 프롬프트 명세' : '8-Cut Prompts'}</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={handleDownload2KImage}
+              disabled={!stitched2KDataUrl || stitchingCanvas}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-300 hover:bg-amber-200 disabled:opacity-50 text-stone-950 text-xs font-bold shadow transition cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5" />
               <span>
-                {viewMode === 'STYLE_PICKER'
-                  ? '10컷 웹툰 본편 보기'
-                  : '그림체 / 3D 원본 다시 선택'}
+                {isKo ? '2K 통짜 웹툰 PNG 저장' : 'Download 2K Webtoon PNG'}
               </span>
             </button>
 
-            {viewMode === 'EPISODE_READER' && (
-              <>
-                <button
-                  onClick={() => generateWebtoonEpisode(selectedStyle)}
-                  disabled={generatingWebtoon}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-semibold text-cyan-200 border border-cyan-500/30 cursor-pointer"
-                  title="Gemini 4 Argon으로 내 플레이 대사를 반영해 10컷 스크립트를 새로 생성합니다"
-                >
-                  <RefreshCw
-                    className={`w-3.5 h-3.5 text-cyan-400 ${
-                      generatingWebtoon ? 'animate-spin' : ''
-                    }`}
-                  />
-                  <span>
-                    {generatingWebtoon
-                      ? 'Gemini 4 Argon 생성 중...'
-                      : 'AI 대사 재연출'}
-                  </span>
-                </button>
-
-                <button
-                  onClick={handleDownloadFullEpisodePng}
-                  disabled={downloading}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 text-xs font-bold text-white shadow-lg shadow-fuchsia-600/30 cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>
-                    {downloading
-                      ? '10컷 전체 저장 중...'
-                      : '1화 전체 이미지 저장 (PNG)'}
-                  </span>
-                </button>
-              </>
-            )}
-
             <button
-              onClick={() => setIsOpen(false)}
-              className="p-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+              onClick={() => setIsWebtoonModalOpen(false)}
+              className="p-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-white/10 text-stone-400 hover:text-white cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* MODE 1: PRE-GENERATION ART STYLE SELECTOR (Choose Naver Webtoon Styles vs. Original 3D) */}
-        {viewMode === 'STYLE_PICKER' && (
-          <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#070410]">
-            <div className="p-5 rounded-2xl bg-gradient-to-r from-fuchsia-950/50 via-purple-950/50 to-indigo-950/50 border border-fuchsia-500/35 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-fuchsia-300 mb-1">
-                  <Wand2 className="w-4 h-4" />
-                  <span>STEP 1 — 웹툰 생성 전 그림체 선택 (Art Style Selection)</span>
-                </div>
-                <h3 className="text-lg font-extrabold text-white">
-                  네이버 웹툰 인기 작화 4종 또는 원래 3D 체험 화면 그대로 중 원하는 스타일을 선택하세요!
-                </h3>
-                <p className="text-xs text-purple-200/85 mt-1">
-                  선택 즉시 플레이어의 5막(Act 1~5) 백스테이지 선택 기록과 10개의 3D 카메라 앵글이 결합된{' '}
-                  <strong className="text-white">정식 1화 분량(10컷 세로 스크롤 웹툰)</strong>이 생성됩니다.
-                </p>
-              </div>
+        {/* Body: Left Style Selector (10 Naver Webtoon Styles + Original 3D) | Right 2K Vertical Scroll Viewer */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+          {/* Left Sidebar: 10 Naver Webtoon Art Styles + Original 3D */}
+          <div className="w-full lg:w-[340px] bg-stone-950/70 border-b lg:border-b-0 lg:border-r border-white/10 p-3.5 overflow-y-auto shrink-0 space-y-2">
+            <div className="flex items-center justify-between px-1 pb-1">
+              <span className="text-xs font-bold text-stone-300">
+                {isKo
+                  ? '네이버 웹툰 그림체 10종 + 원본 3D'
+                  : '10 Naver Webtoon Styles + Original 3D'}
+              </span>
               <button
-                onClick={() => handleStartEpisodeGeneration(selectedStyle)}
-                className="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 text-sm font-extrabold text-white shadow-xl shadow-fuchsia-600/30 cursor-pointer"
+                onClick={() =>
+                  generateWebtoonEpisode(activePreset.backendStyleId, lang)
+                }
+                disabled={generatingWebtoon}
+                className="inline-flex items-center gap-1 text-[11px] text-amber-200 hover:text-amber-100 cursor-pointer"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>선택한 스타일로 1화(10컷) 생성하기</span>
+                <RefreshCw
+                  className={`w-3 h-3 ${generatingWebtoon ? 'animate-spin' : ''}`}
+                />
+                <span>{isKo ? '재생성' : 'Regenerate'}</span>
               </button>
             </div>
 
-            {/* 5 Art Style Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {WEBTOON_STYLE_OPTIONS.map((opt) => {
-                const isSelected = selectedStyle === opt.id;
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+              {TEN_NAVER_STYLES.map((preset) => {
+                const isSelected = preset.key === selectedPresetKey;
                 return (
-                  <div
-                    key={opt.id}
-                    onClick={() => setSelectedStyle(opt.id)}
-                    className={`group rounded-2xl overflow-hidden border-2 transition-all cursor-pointer flex flex-col bg-[#0e081d] ${
+                  <button
+                    key={preset.key}
+                    onClick={() => handleSelectPreset(preset)}
+                    disabled={generatingWebtoon}
+                    className={`w-full text-left p-2 rounded-xl border transition flex items-center gap-2.5 cursor-pointer ${
                       isSelected
-                        ? `${opt.accentBorder} shadow-2xl shadow-fuchsia-500/20 scale-[1.01]`
-                        : 'border-purple-500/25 hover:border-purple-400/60'
+                        ? 'bg-stone-800/95 border-amber-300/70 shadow-md'
+                        : 'bg-stone-900/70 hover:bg-stone-900 border-white/10'
                     }`}
                   >
-                    <div className="relative h-48 w-full bg-black overflow-hidden">
-                      <img
-                        src={opt.previewImg}
-                        alt={opt.nameKo}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#0e081d] via-transparent to-black/30" />
-                      <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/80 border border-white/15 text-[10px] font-extrabold text-fuchsia-300">
-                        {opt.badge}
-                      </span>
-                      {isSelected && (
-                        <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-fuchsia-600 text-white text-[10px] font-extrabold shadow">
-                          <CheckCircle2 className="w-3 h-3" />
-                          선택됨
+                    <img
+                      src={preset.previewUrl}
+                      alt={isKo ? preset.nameKo : preset.nameEn}
+                      className="w-12 h-12 rounded-lg object-cover border border-white/15 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold text-stone-100 truncate">
+                          {isKo ? preset.nameKo : preset.nameEn}
                         </span>
-                      )}
-                    </div>
-
-                    <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
-                      <div>
-                        <div className={`text-sm font-extrabold ${opt.accentText}`}>
-                          {opt.nameKo}
-                        </div>
-                        <div className="text-[11px] font-semibold text-purple-300/90 mt-0.5">
-                          {opt.referenceWorks}
-                        </div>
-                        <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-                          {opt.description}
-                        </p>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                        )}
                       </div>
+                      <div className="text-[10px] text-amber-200/90 truncate">
+                        {isKo ? preset.refWorkKo : preset.refWorkEn}
+                      </div>
+                      <div className="text-[10px] text-stone-400 truncate mt-0.5">
+                        {isKo ? preset.descKo : preset.descEn}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStartEpisodeGeneration(opt.id);
-                        }}
-                        className={`w-full py-2 px-3 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-fuchsia-600 to-violet-600 text-white shadow-md'
-                            : 'bg-purple-950/60 hover:bg-purple-900 text-purple-200 border border-purple-500/30'
-                        }`}
-                      >
-                        이 그림체로 1화(10컷) 바로 열기 →
-                      </button>
+          {/* Right Main Viewport: Continuous 2K Stitched Vertical Webtoon Image */}
+          <div className="flex-1 overflow-y-auto bg-[#0f0e0d] p-4 sm:p-6 flex flex-col items-center">
+            {generatingWebtoon || stitchingCanvas ? (
+              <div className="my-auto flex flex-col items-center gap-3 py-16 text-center">
+                <RefreshCw className="w-8 h-8 text-amber-300 animate-spin" />
+                <div className="text-sm font-bold text-stone-100">
+                  {isKo
+                    ? '2K (2048px) 초고화질 통짜 세로 웹툰 및 말풍선 합성 중...'
+                    : 'Compositing 2K (2048px) continuous vertical webtoon & speech bubbles...'}
+                </div>
+                <div className="text-xs text-stone-400">
+                  {isKo
+                    ? `${activePreset.nameKo} 스타일 및 플레이 기록 반영 중`
+                    : `Applying ${activePreset.nameEn} grading & verified story log`}
+                </div>
+              </div>
+            ) : showPromptDetails && generatedEpisode ? (
+              <div className="w-full max-w-3xl space-y-3">
+                <div className="p-4 rounded-xl bg-stone-900 border border-white/10">
+                  <h3 className="text-sm font-bold text-amber-200">
+                    {isKo
+                      ? '나노바나나 프로 8컷 개별 이미지 프롬프트 & 대사 명세'
+                      : 'NanoBanana Pro 8-Cut Distinct Image Prompts & Script'}
+                  </h3>
+                  <p className="text-xs text-stone-400 mt-1">
+                    {generatedEpisode.styleDescription}
+                  </p>
+                </div>
+                {generatedEpisode.cuts.map((cut, idx) => (
+                  <div
+                    key={cut.cutNumber}
+                    className="p-4 rounded-xl bg-stone-900/90 border border-white/10 flex gap-4 items-start"
+                  >
+                    <img
+                      src={DISTINCT_CUT_URLS[idx % DISTINCT_CUT_URLS.length]}
+                      alt={`Cut ${cut.cutNumber}`}
+                      className="w-28 h-20 rounded-lg object-cover border border-white/15 shrink-0"
+                    />
+                    <div className="space-y-1 text-xs min-w-0 flex-1">
+                      <div className="font-bold text-stone-100">
+                        CUT 0{cut.cutNumber} · {cut.sceneTitle} (
+                        {cut.timestampBadge})
+                      </div>
+                      <div className="text-stone-300">{cut.narration}</div>
+                      <div className="text-amber-200 font-medium">
+                        {cut.speaker}: &ldquo;{cut.dialogue}&rdquo;
+                      </div>
+                      <div className="text-[11px] text-stone-500 font-mono break-all pt-1">
+                        Prompt: {cut.imagePrompt}
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* MODE 2: FULL 10-CUT VERTICAL SCROLL WEBTOON EPISODE READER */}
-        {viewMode === 'EPISODE_READER' && (
-          <div className="flex-1 overflow-y-auto bg-[#05030a]">
-            {/* Sticky Quick Style Switcher Bar */}
-            <div className="sticky top-0 z-20 px-4 py-2.5 bg-[#0b061a]/95 backdrop-blur-md border-b border-purple-500/30 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-                <span className="text-[11px] font-bold text-purple-300 mr-1 shrink-0">
-                  그림체 즉시 전환:
-                </span>
-                {WEBTOON_STYLE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.id}
-                    onClick={() => setSelectedStyle(opt.id)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold shrink-0 transition cursor-pointer border ${
-                      selectedStyle === opt.id
-                        ? 'bg-fuchsia-600 border-fuchsia-300 text-white shadow'
-                        : 'bg-purple-950/50 border-purple-500/30 text-purple-200 hover:text-white'
-                    }`}
-                  >
-                    {opt.id === 'ORIGINAL_3D'
-                      ? '원래 3D 그대로'
-                      : opt.nameKo.replace('네이버 ', '')}
-                  </button>
                 ))}
               </div>
-
-              {selectedStyle !== 'ORIGINAL_3D' && (
-                <button
-                  onClick={() => setShowHybrid3DInset((v) => !v)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border cursor-pointer ${
-                    showHybrid3DInset
-                      ? 'bg-cyan-950/80 border-cyan-400/60 text-cyan-200'
-                      : 'bg-slate-900 border-slate-700 text-slate-400'
-                  }`}
-                >
-                  <Layers className="w-3 h-3" />
+            ) : stitched2KDataUrl ? (
+              <div className="w-full max-w-[780px] flex flex-col items-center">
+                <div className="w-full mb-3 px-4 py-2 rounded-xl bg-stone-900/90 border border-white/10 flex items-center justify-between text-xs text-stone-300">
                   <span>
-                    {showHybrid3DInset
-                      ? '원본 3D 앵글 PIP 표시 중'
-                      : '원본 3D 앵글 PIP 숨김'}
+                    {isKo
+                      ? '하나로 이어진 2K (2048px) 통짜 웹툰 이미지입니다. 스크롤하여 감상하거나 우클릭/다운로드할 수 있습니다.'
+                      : 'Single continuous 2K (2048px) stitched webtoon image with embedded speech bubbles.'}
                   </span>
-                </button>
-              )}
-            </div>
-
-            {/* Vertical Manhwa Reader Column (Max Width 680px like Naver Webtoon Mobile/PC Viewer) */}
-            <div className="max-w-2xl mx-auto py-8 px-4 space-y-12">
-              {/* Episode Title Card */}
-              <div className="text-center space-y-2 py-6 px-4 rounded-2xl bg-gradient-to-b from-purple-950/60 to-[#090514] border border-fuchsia-500/30">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-fuchsia-500/20 border border-fuchsia-400/40 text-[11px] font-extrabold text-fuchsia-300">
-                  <Film className="w-3.5 h-3.5" />
-                  <span>{activeStyleMeta.nameKo} · 정식 1화 (총 10컷)</span>
+                  <span className="font-mono text-amber-200 font-bold shrink-0 ml-2">
+                    {worldState?.endingReached !== 'NONE'
+                      ? worldState?.endingReached
+                      : 'LIVE EP.01'}
+                  </span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  {episodeToRender.episodeSubtitle}
-                </h1>
-                <p className="text-xs text-purple-200/80">
-                  {activeStyleMeta.referenceWorks} · 플레이 턴 {worldState.turnCount}회 ·
-                  하나 신뢰도 {worldState.relationships.hanaTrust}% · 지호 신뢰도{' '}
-                  {worldState.relationships.jihoTrust}%
-                </p>
+
+                {/* Single Continuous Stitched 2K Webtoon Image */}
+                <img
+                  src={stitched2KDataUrl}
+                  alt="FANVERSE 2K Continuous Vertical Webtoon"
+                  className="w-full h-auto rounded-2xl shadow-2xl border border-white/15 select-auto"
+                />
               </div>
-
-              {/* 10 Vertical Scroll Cuts */}
-              {episodeToRender.cuts.map((cut) => {
-                const frame3D =
-                  multiAngle3DFrames[cut.cameraShotId as CameraShotId];
-                return (
-                  <article
-                    key={cut.cutNumber}
-                    className="rounded-2xl overflow-hidden bg-[#0e071c] border-2 border-purple-500/35 shadow-[0_20px_50px_rgba(0,0,0,0.85)]"
-                  >
-                    {/* Narrator Top Square Box (Classic Naver Webtoon Narration Box) */}
-                    <div className="px-5 py-3.5 bg-[#140a29] border-b border-purple-500/30 flex items-start justify-between gap-3">
-                      <p className="text-xs sm:text-sm text-purple-100/95 font-medium leading-relaxed">
-                        {cut.narratorCaption}
-                      </p>
-                      <span className="text-[11px] font-mono text-fuchsia-400 font-bold shrink-0">
-                        #{String(cut.cutNumber).padStart(2, '0')}
-                      </span>
-                    </div>
-
-                    {/* Visual Cut Artwork (Naver Webtoon Style or Original 3D Camera Angle) */}
-                    <WebtoonCutArtwork
-                      cut={cut}
-                      styleMeta={activeStyleMeta}
-                      frame3D={frame3D}
-                      showHybrid3DInset={showHybrid3DInset}
-                    />
-
-                    {/* Dialogue Speech Bubble & Inner Monologue */}
-                    <div className="p-5 space-y-3.5 bg-gradient-to-b from-[#120924] to-[#0b0517]">
-                      <div className="text-xs font-bold text-purple-300 uppercase tracking-wider">
-                        {cut.sceneTitle}
-                      </div>
-
-                      {/* Speech Bubble */}
-                      <div className="relative p-4 rounded-2xl bg-white text-slate-900 shadow-xl border-2 border-fuchsia-400">
-                        <div className="inline-block px-2 py-0.5 rounded bg-fuchsia-600 text-white text-[10px] font-black uppercase tracking-wider mb-1.5">
-                          {cut.speaker === 'FAN'
-                            ? 'YOU (VIP FAN)'
-                            : cut.speaker}
-                        </div>
-                        <p className="text-sm sm:text-base font-bold leading-relaxed text-slate-900">
-                          {cut.dialogue}
-                        </p>
-                      </div>
-
-                      {/* Character Inner Monologue */}
-                      <div className="px-4 py-2.5 rounded-xl bg-purple-950/40 border border-purple-500/25 text-xs italic text-purple-200/90">
-                        {cut.innerMonologue}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-
-              {/* Creator's Note / Episode End Card */}
-              <div className="p-6 rounded-2xl bg-gradient-to-r from-fuchsia-950/60 via-purple-950/60 to-indigo-950/60 border border-fuchsia-500/40 space-y-3 text-center">
-                <div className="text-xs font-extrabold uppercase tracking-widest text-fuchsia-300">
-                  TO BE CONTINUED IN EPISODE 02
-                </div>
-                <p className="text-sm text-white font-semibold leading-relaxed">
-                  {episodeToRender.authorComment}
-                </p>
-                <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    onClick={() => setViewMode('STYLE_PICKER')}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-900/70 hover:bg-purple-800 text-xs font-bold text-purple-100 border border-purple-400/40 cursor-pointer"
-                  >
-                    <Palette className="w-3.5 h-3.5" />
-                    <span>다른 네이버 웹툰 그림체나 원본 3D로 비교하기</span>
-                  </button>
-                  <button
-                    onClick={handleDownloadFullEpisodePng}
-                    disabled={downloading}
-                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-violet-600 hover:from-fuchsia-500 hover:to-violet-500 text-xs font-bold text-white shadow-lg cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>1화 10컷 전체 웹툰 저장하기 (PNG)</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            ) : null}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
-

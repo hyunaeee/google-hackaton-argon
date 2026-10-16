@@ -53,10 +53,13 @@ export const CANONICAL_WORLD_FACTS = {
   ],
 } as const;
 
-export function createInitialWorldState(): WorldState {
+export function createInitialWorldState(lang: 'en' | 'ko' = 'en'): WorldState {
+  const isKo = lang === 'ko';
   return {
     episodeId: CANONICAL_WORLD_FACTS.episodeId,
-    episodeTitle: CANONICAL_WORLD_FACTS.episodeTitle,
+    episodeTitle: isKo
+      ? '제1화 — 개막 5분 전'
+      : CANONICAL_WORLD_FACTS.episodeTitle,
     currentAct: 1,
     turnCount: 0,
     narrativeTimer: '05:00',
@@ -85,14 +88,16 @@ export function createInitialWorldState(): WorldState {
         id: 'evt-init-0',
         turnNumber: 0,
         timestamp: new Date().toISOString(),
-        playerInput: '[EPISODE START]',
+        playerInput: isKo ? '[이야기 시작]' : '[EPISODE START]',
         actionType: 'NO_OP',
         targetId: 'room',
         speaker: 'HANA',
-        npcResponse:
-          "Wait—you're the VIP fan pass winner who helped carry the standby monitors, right? Please, we have five minutes until LUMINA's comeback stage and my custom starlight mic has vanished!",
-        narration:
-          'ACT 1 — Neon magenta and cyan warning lights pulse across LUMINA’s backstage dressing room as the 05:00 holographic countdown clock ticks.',
+        npcResponse: isKo
+          ? '잠깐만요—아까 대기실 모니터 옮기는 걸 도와주신 특별 출입증 당첨 팬분 맞으시죠? 제발 도와주세요, 루미나 컴백 첫 무대까지 5분밖에 안 남았는데 제 전용 별빛 무선 마이크가 감쪽같이 사라졌어요!'
+          : "Wait—you're the VIP fan pass winner who helped carry the standby monitors, right? Please, we have five minutes until LUMINA's comeback stage and my custom starlight mic has vanished!",
+        narration: isKo
+          ? '제1막 — 개막 5분 전을 알리는 홀로그램 초시계가 깜빡이는 가운데, 루미나의 대기실 곳곳에 자홍빛과 청록빛 비상 경고등이 긴박하게 맥동합니다.'
+          : 'ACT 1 — Neon magenta and cyan warning lights pulse across LUMINA’s backstage dressing room as the 05:00 holographic countdown clock ticks.',
         accepted: true,
         milestoneTag: 'CRISIS_START',
       },
@@ -100,3 +105,4 @@ export function createInitialWorldState(): WorldState {
     lastVerificationTrace: null,
   };
 }
+

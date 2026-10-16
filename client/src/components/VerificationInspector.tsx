@@ -104,29 +104,29 @@ const PIPELINE_NODES: PipelineNodeSpec[] = [
     modelBadge: 'gemini-3.8-flash-tts',
     apiBadge: 'RIG_* Pivot Empties',
     summary:
-      'Verified state transitions immediately drive 3D pivot rigs (RIG_locker_door, RIG_stage_door_L/R), 5 dynamic concert lighting modes, procedural Web Audio SFX, and companion TTS voice synthesis.',
+      'Verified state transitions immediately drive 3D pivot rigs (RIG_locker_door, RIG_stage_door_L/R, RIG_vanity_drawer, RIG_audio_rack_door, RIG_mirror_panel), dynamic studio lighting modes, procedural Web Audio SFX, and companion TTS voice synthesis.',
     highlights: [
       'Real-scale 3D backstage green room with 12 raycastable props & rigged characters',
-      '5 lighting modes: BACKSTAGE_CRISIS → LOCKER_OPENED → READY_FOR_STAGE → ENDING_A/B',
+      'Dynamic studio lighting modes: BACKSTAGE_CRISIS → LOCKER_OPENED → READY_FOR_STAGE → ENDING_A/B',
       'Companion voice synthesis + Web Audio procedural sound effects per ActionType',
     ],
-    codeSnippet: `// Rigged pivot doors driven by authoritative WorldState flags
+    codeSnippet: `// Rigged pivot doors & drawers driven by WorldState & interactive state
 lockerDoorPivot.rotation.y = worldState.lockerUnlocked ? -Math.PI * 0.62 : 0;
 stageDoorLeftPivot.rotation.y = worldState.stageDoorOpen ? -Math.PI * 0.55 : 0;`,
   },
   {
     id: 'webtoon',
     step: 'STEP 05',
-    title: 'Long-Decode 10-Cut Webtoon Serialization Studio',
-    subtitle: 'Single-Pass 10-Cut Storyboard + 10 Art Styles + 2K Strip Export',
-    modelBadge: 'gemini-4-argon + gemini-nano-banana-2.1',
+    title: 'Long-Decode 2K Webtoon Serialization Studio',
+    subtitle: 'Single-Pass Episode Storyboard + 10 Naver Styles + 2K Strip Export',
+    modelBadge: 'gemini-4-argon + NanoBanana Pro',
     apiBadge: 'thinking_level: "medium" · max_output_tokens: 16384',
     summary:
-      'Leverages Gemini 4 Argon Long-Decode generation to synthesize the entire 10-cut vertical-scroll episode in a single pass from the verified playthrough log, paired with 10 Naver Webtoon visual styles and a 2K (2000×12800) stitched PNG export.',
+      'Leverages Gemini 4 Argon Long-Decode generation to synthesize the entire vertical-scroll episode in a single pass from the verified playthrough log, paired with 10 Naver Webtoon visual styles and a 2K (2048px wide) stitched PNG export.',
     highlights: [
-      'Single-shot 10-cut episode generation (GeneratedWebtoonEpisodeSchema)',
-      '10 distinct Naver Webtoon visual presets + AI 4-panel quadrant slicing',
-      'One-click 2K (2000×12800 px) single vertical strip PNG download',
+      'Single-shot full episode generation (GeneratedWebtoonEpisodeSchema)',
+      '10 distinct Naver Webtoon visual presets + 8 distinct NanoBanana Pro cuts',
+      'One-click 2K (2048px wide) single vertical strip PNG download with embedded speech bubbles',
     ],
     codeSnippet: `const interaction = await ai.interactions.create({
   model: 'gemini-4-argon',
@@ -145,6 +145,8 @@ export const VerificationInspector: React.FC<{
   );
   const [selectedNodeId, setSelectedNodeId] = useState<string>('director');
 
+  const lang = useGameStore((s) => s.lang);
+  const isKo = lang === 'ko';
   const worldState = useGameStore((s) => s.worldState);
   const verificationHistory = useGameStore((s) => s.verificationHistory);
 
@@ -159,51 +161,69 @@ export const VerificationInspector: React.FC<{
     PIPELINE_NODES.find((n) => n.id === selectedNodeId) ?? PIPELINE_NODES[0];
 
   return (
-    <div className="space-y-3.5 text-xs">
+    <div className="space-y-3.5 text-xs text-stone-200">
       {/* Interactive Mode Switcher: Live Trace vs Architecture Walkthrough */}
-      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800">
+      <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-stone-900 border border-white/10">
         <button
           type="button"
           onClick={() => setActiveTab('traces')}
           className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
             activeTab === 'traces'
-              ? 'bg-fuchsia-950/80 text-fuchsia-200 border border-fuchsia-500/40 shadow-sm'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-stone-800 text-amber-200 border border-amber-300/40 shadow-sm'
+              : 'text-stone-400 hover:text-stone-200'
           }`}
         >
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span>실시간 검증 로그 ({traces.length})</span>
+          <span>
+            {isKo
+              ? `실시간 검증 로그 (${traces.length})`
+              : `Live Verification Log (${traces.length})`}
+          </span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('architecture')}
           className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-semibold transition cursor-pointer ${
             activeTab === 'architecture'
-              ? 'bg-indigo-950/80 text-indigo-200 border border-indigo-400/40 shadow-sm'
-              : 'text-slate-400 hover:text-slate-200'
+              ? 'bg-stone-800 text-amber-200 border border-amber-300/40 shadow-sm'
+              : 'text-stone-400 hover:text-stone-200'
           }`}
         >
           <Layers className="w-3.5 h-3.5 text-amber-300" />
-          <span>아키텍처 파이프라인</span>
+          <span>
+            {isKo ? '아키텍처 파이프라인' : 'Architecture Pipeline'}
+          </span>
         </button>
       </div>
 
       {activeTab === 'architecture' ? (
         <div className="space-y-3">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-950/60 to-fuchsia-950/50 border border-indigo-400/30">
+          <div className="p-3 rounded-xl bg-stone-900/90 border border-white/10">
             <div className="flex items-center justify-between gap-2 mb-1">
-              <div className="flex items-center gap-1.5 text-indigo-200 font-semibold">
+              <div className="flex items-center gap-1.5 text-amber-200 font-semibold">
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 <span>Gemini 4 Argon Architecture Walkthrough</span>
               </div>
-              <span className="px-1.5 py-0.5 rounded bg-indigo-900/70 border border-indigo-400/30 font-mono text-[9px] text-indigo-200">
+              <span className="px-1.5 py-0.5 rounded bg-stone-800 border border-white/10 font-mono text-[9px] text-amber-200">
                 @google/genai Interactions API
               </span>
             </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              아래 파이프라인 단계를 클릭하면 <code className="text-amber-200">gemini-4-argon</code>의 단계별{' '}
-              <code className="text-fuchsia-300">thinking_level</code> 에스컬레이션,{' '}
-              <code className="text-cyan-300">previous_interaction_id</code> 체이닝, 결정론적 상태 검증기 코드를 확인할 수 있습니다.
+            <p className="text-[11px] text-stone-300 leading-relaxed">
+              {isKo ? (
+                <>
+                  아래 파이프라인 단계를 클릭하면{' '}
+                  <code className="text-amber-200">gemini-4-argon</code>의 단계별{' '}
+                  <code className="text-amber-300">thinking_level</code> 에스컬레이션,{' '}
+                  <code className="text-emerald-300">previous_interaction_id</code> 체이닝, 결정론적 상태 검증기 코드를 확인할 수 있습니다.
+                </>
+              ) : (
+                <>
+                  Click any pipeline stage below to inspect{' '}
+                  <code className="text-amber-200">gemini-4-argon</code>{' '}
+                  <code className="text-amber-300">thinking_level</code> escalation,{' '}
+                  <code className="text-emerald-300">previous_interaction_id</code> chaining, and the deterministic validator contract.
+                </>
+              )}
             </p>
           </div>
 
@@ -218,25 +238,25 @@ export const VerificationInspector: React.FC<{
                   onClick={() => setSelectedNodeId(node.id)}
                   className={`w-full text-left p-2.5 rounded-xl border transition cursor-pointer flex items-start justify-between gap-2 ${
                     isSelected
-                      ? 'bg-slate-900 border-amber-300/60 shadow-md'
-                      : 'bg-slate-950/70 border-slate-800/90 hover:border-slate-700'
+                      ? 'bg-stone-900 border-amber-300/60 shadow-md'
+                      : 'bg-stone-950/70 border-white/10 hover:border-white/25'
                   }`}
                 >
                   <div className="space-y-0.5 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-[9px] font-bold text-amber-300">
+                      <span className="px-1.5 py-0.5 rounded bg-stone-800 font-mono text-[9px] font-bold text-amber-300">
                         {node.step}
                       </span>
-                      <span className="font-bold text-slate-100 text-[11px] truncate">
+                      <span className="font-bold text-stone-100 text-[11px] truncate">
                         {node.title}
                       </span>
                     </div>
-                    <div className="text-[10px] text-slate-400 truncate">
+                    <div className="text-[10px] text-stone-400 truncate">
                       {node.subtitle}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                    <span className="px-1.5 py-0.5 rounded bg-fuchsia-950/70 border border-fuchsia-500/30 font-mono text-[9px] text-fuchsia-200">
+                    <span className="px-1.5 py-0.5 rounded bg-stone-800 border border-white/10 font-mono text-[9px] text-amber-200">
                       {index === 0
                         ? 'low'
                         : index === 1
@@ -245,13 +265,13 @@ export const VerificationInspector: React.FC<{
                             ? 'medium'
                             : index === 3
                               ? '3D+TTS'
-                              : '16K out'}
+                              : '2K out'}
                     </span>
                     <ArrowRight
                       className={`w-3.5 h-3.5 transition ${
                         isSelected
                           ? 'text-amber-300 translate-x-0.5'
-                          : 'text-slate-600'
+                          : 'text-stone-600'
                       }`}
                     />
                   </div>
@@ -261,21 +281,21 @@ export const VerificationInspector: React.FC<{
           </div>
 
           {/* Selected Node Deep-Dive Card */}
-          <div className="p-3 rounded-xl bg-slate-900/95 border border-slate-700/80 space-y-2.5">
-            <div className="flex items-center justify-between gap-2 flex-wrap border-b border-slate-800 pb-2">
-              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-fuchsia-950 text-fuchsia-200 border border-fuchsia-500/40 font-semibold">
+          <div className="p-3 rounded-xl bg-stone-900/95 border border-white/12 space-y-2.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap border-b border-white/10 pb-2">
+              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-stone-800 text-amber-200 border border-amber-300/30 font-semibold">
                 {activeNode.modelBadge}
               </span>
-              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-cyan-950 text-cyan-200 border border-cyan-500/40">
+              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-stone-950 text-emerald-300 border border-emerald-400/30">
                 {activeNode.apiBadge}
               </span>
             </div>
 
-            <p className="text-[11px] text-slate-200 leading-relaxed">
+            <p className="text-[11px] text-stone-200 leading-relaxed">
               {activeNode.summary}
             </p>
 
-            <ul className="space-y-1 text-[10px] text-slate-300">
+            <ul className="space-y-1 text-[10px] text-stone-300">
               {activeNode.highlights.map((item, idx) => (
                 <li key={idx} className="flex items-start gap-1.5">
                   <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
@@ -285,50 +305,50 @@ export const VerificationInspector: React.FC<{
             </ul>
 
             <div>
-              <div className="text-[9px] uppercase tracking-wider text-slate-400 mb-1 font-mono">
+              <div className="text-[9px] uppercase tracking-wider text-stone-400 mb-1 font-mono">
                 Implementation Contract
               </div>
-              <pre className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-[10px] text-emerald-300 overflow-x-auto leading-relaxed">
+              <pre className="p-2.5 rounded-lg bg-stone-950 border border-white/10 font-mono text-[10px] text-emerald-300 overflow-x-auto leading-relaxed">
                 {activeNode.codeSnippet}
               </pre>
             </div>
           </div>
 
           {/* Model Family Summary Matrix */}
-          <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <div className="p-3 rounded-xl bg-stone-900/80 border border-white/10 space-y-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-stone-400">
               Multi-Model Orchestration Stack
             </div>
             <div className="grid grid-cols-1 gap-1.5 text-[10px]">
-              <div className="p-2 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-200 font-medium">
-                  <Cpu className="w-3.5 h-3.5 text-fuchsia-400" />
+              <div className="p-2 rounded bg-stone-950 border border-white/10 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-stone-200 font-medium">
+                  <Cpu className="w-3.5 h-3.5 text-amber-300" />
                   gemini-4-argon
                 </span>
-                <span className="font-mono text-fuchsia-300">
-                  Story Director + 10-Cut Long-Decode
+                <span className="font-mono text-amber-200">
+                  Story Director + Long-Decode
                 </span>
               </div>
-              <div className="p-2 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-200 font-medium">
+              <div className="p-2 rounded bg-stone-950 border border-white/10 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-stone-200 font-medium">
                   <BookOpen className="w-3.5 h-3.5 text-amber-300" />
-                  gemini-nano-banana-2.1
+                  NanoBanana Pro 2K
                 </span>
                 <span className="font-mono text-amber-200">
-                  2K 4-Panel Webtoon Keyframes
+                  8 Distinct Cuts + 10 Naver Styles
                 </span>
               </div>
-              <div className="p-2 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-200 font-medium">
-                  <Volume2 className="w-3.5 h-3.5 text-cyan-300" />
+              <div className="p-2 rounded bg-stone-950 border border-white/10 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-stone-200 font-medium">
+                  <Volume2 className="w-3.5 h-3.5 text-emerald-300" />
                   gemini-3.8-flash-tts + WebAudio
                 </span>
-                <span className="font-mono text-cyan-200">
+                <span className="font-mono text-emerald-200">
                   Character Voice &amp; Stage SFX
                 </span>
               </div>
-              <div className="p-2 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 text-slate-200 font-medium">
+              <div className="p-2 rounded bg-stone-950 border border-white/10 flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-stone-200 font-medium">
                   <Lock className="w-3.5 h-3.5 text-emerald-400" />
                   validateAction.ts
                 </span>
@@ -341,14 +361,14 @@ export const VerificationInspector: React.FC<{
         </div>
       ) : (
         <>
-          <div className="p-3 rounded-xl bg-gradient-to-br from-fuchsia-950/50 to-indigo-950/50 border border-fuchsia-500/30">
-            <div className="flex items-center gap-2 text-fuchsia-300 font-semibold mb-1">
+          <div className="p-3 rounded-xl bg-stone-900/90 border border-white/10">
+            <div className="flex items-center gap-2 text-amber-200 font-semibold mb-1">
               <ShieldCheck className="w-4 h-4 text-emerald-400" />
               <span>Deterministic Verification &amp; Correction Loop</span>
             </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              Gemini 4 Argon (<code className="text-fuchsia-300">gemini-4-argon</code>) proposes structured actions with{' '}
-              <code className="text-cyan-300">thinking_level: &quot;low&quot;</code>, while canonical world rules validate every state transition. Rejected proposals chain{' '}
+            <p className="text-[11px] text-stone-300 leading-relaxed">
+              Gemini 4 Argon (<code className="text-amber-200">gemini-4-argon</code>) proposes structured actions with{' '}
+              <code className="text-emerald-300">thinking_level: &quot;low&quot;</code>, while canonical world rules validate every state transition. Rejected proposals chain{' '}
               <code className="text-amber-200">previous_interaction_id</code> and escalate to{' '}
               <code className="text-amber-200">thinking_level: &quot;medium&quot;</code> (up to 2 retries).
             </p>
@@ -356,12 +376,12 @@ export const VerificationInspector: React.FC<{
 
           {/* Live Authoritative World Flags */}
           {worldState && (
-            <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+            <div className="p-3 rounded-xl bg-stone-900/80 border border-white/10">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-stone-400">
                   Canonical World Flags
                 </span>
-                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-700/40">
+                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-stone-800 text-amber-200 border border-white/10">
                   Turn #{worldState.turnCount}
                 </span>
               </div>
@@ -394,9 +414,9 @@ export const VerificationInspector: React.FC<{
                   label="stageDoorOpen"
                   value={worldState.stageDoorOpen}
                 />
-                <div className="px-2 py-1 rounded bg-slate-950/90 border border-slate-800 flex items-center justify-between">
-                  <span className="text-slate-400">ending</span>
-                  <span className="text-fuchsia-300 font-semibold">
+                <div className="px-2 py-1 rounded bg-stone-950/90 border border-white/10 flex items-center justify-between">
+                  <span className="text-stone-400">ending</span>
+                  <span className="text-amber-200 font-semibold">
                     {worldState.endingReached}
                   </span>
                 </div>
@@ -406,13 +426,23 @@ export const VerificationInspector: React.FC<{
 
           {/* Trace History */}
           {traces.length === 0 ? (
-            <div className="p-6 rounded-xl bg-slate-900/50 border border-slate-800/80 text-center text-slate-400">
-              <Terminal className="w-6 h-6 mx-auto mb-2 text-slate-500" />
-              <p className="font-medium text-slate-300">
-                No AI Action Traces Yet
+            <div className="p-6 rounded-xl bg-stone-900/50 border border-white/10 text-center text-stone-400">
+              <Terminal className="w-6 h-6 mx-auto mb-2 text-stone-500" />
+              <p className="font-medium text-stone-300">
+                {isKo ? '아직 기록된 검증 로그가 없습니다' : 'No AI Action Traces Yet'}
               </p>
               <p className="text-[11px] mt-1">
-                Click a 3D object or press the <b className="text-amber-200">[G 규칙 가드 테스트]</b> choice button to inspect the live Gemini 4 Argon verification &amp; correction loop.
+                {isKo ? (
+                  <>
+                    3D 오브젝트를 클릭하거나 상단의{' '}
+                    <b className="text-amber-200">[가드 테스트]</b> 버튼을 눌러 실시간 검증 및 재작성 루프를 확인하세요.
+                  </>
+                ) : (
+                  <>
+                    Click a 3D object or press the{' '}
+                    <b className="text-amber-200">[Test Rule Guard]</b> button to inspect the live Gemini 4 Argon verification &amp; correction loop.
+                  </>
+                )}
               </p>
             </div>
           ) : (
@@ -420,15 +450,15 @@ export const VerificationInspector: React.FC<{
               {traces.map((trace, idx) => (
                 <div
                   key={trace.id || idx}
-                  className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2.5"
+                  className="p-3 rounded-xl bg-stone-900/90 border border-white/10 space-y-2.5"
                 >
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 gap-1 flex-wrap">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2 gap-1 flex-wrap">
                     <div className="flex items-center gap-1.5">
-                      <Cpu className="w-3.5 h-3.5 text-fuchsia-400" />
-                      <span className="font-mono text-[11px] text-fuchsia-300 font-semibold">
+                      <Cpu className="w-3.5 h-3.5 text-amber-300" />
+                      <span className="font-mono text-[11px] text-amber-200 font-semibold">
                         {trace.modelUsed}
                       </span>
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-[10px] text-stone-500">
                         ({trace.latencyMs}ms)
                       </span>
                     </div>
@@ -443,9 +473,9 @@ export const VerificationInspector: React.FC<{
                     )}
                   </div>
 
-                  {/* Interactions API Telemetry Badges (thinking_level & interactionId) */}
+                  {/* Interactions API Telemetry Badges */}
                   <div className="flex items-center gap-1.5 flex-wrap font-mono text-[10px]">
-                    <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-cyan-300">
+                    <span className="px-2 py-0.5 rounded bg-stone-950 border border-white/10 text-emerald-300">
                       thinking_level:{' '}
                       <b>
                         {trace.correctionAttempts.length > 0
@@ -454,27 +484,27 @@ export const VerificationInspector: React.FC<{
                       </b>
                     </span>
                     {trace.interactionId && (
-                      <span className="px-2 py-0.5 rounded bg-slate-950 border border-slate-800 text-slate-400 truncate max-w-[200px]">
+                      <span className="px-2 py-0.5 rounded bg-stone-950 border border-white/10 text-stone-400 truncate max-w-[200px]">
                         id: {trace.interactionId}
                       </span>
                     )}
                   </div>
 
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-0.5">
+                    <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">
                       1. Player Input
                     </div>
-                    <div className="p-2 rounded bg-slate-950 border border-slate-800 text-slate-200 font-medium">
+                    <div className="p-2 rounded bg-stone-950 border border-white/10 text-stone-200 font-medium">
                       &ldquo;{trace.playerInput}&rdquo;
                     </div>
                   </div>
 
                   {trace.initialProposal && (
                     <div>
-                      <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-0.5">
+                      <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">
                         2. Gemini 4 Argon Initial Proposal (thinking_level: low)
                       </div>
-                      <div className="p-2 rounded bg-slate-950 border border-slate-800 font-mono text-[10px] text-cyan-300 overflow-x-auto">
+                      <div className="p-2 rounded bg-stone-950 border border-white/10 font-mono text-[10px] text-amber-200 overflow-x-auto">
                         <div>
                           actionType: <b>{trace.initialProposal.actionType}</b>{' '}
                           | targetId: <b>{trace.initialProposal.targetId}</b>
@@ -490,7 +520,7 @@ export const VerificationInspector: React.FC<{
                   )}
 
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-0.5">
+                    <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">
                       3. Deterministic Validator Result
                     </div>
                     <div
@@ -540,7 +570,7 @@ export const VerificationInspector: React.FC<{
                             </span>
                           </div>
                           {attempt.previousInteractionId && (
-                            <div className="flex items-center gap-1 font-mono text-[9px] text-cyan-300/90">
+                            <div className="flex items-center gap-1 font-mono text-[9px] text-emerald-300/90">
                               <GitBranch className="w-3 h-3 shrink-0" />
                               <span className="truncate">
                                 previous_interaction_id:{' '}
@@ -549,7 +579,7 @@ export const VerificationInspector: React.FC<{
                             </div>
                           )}
                           {attempt.correctedProposal && (
-                            <div className="text-slate-300 italic pt-0.5">
+                            <div className="text-stone-300 italic pt-0.5">
                               &ldquo;{attempt.correctedProposal.npcResponse}
                               &rdquo;
                             </div>
@@ -560,10 +590,10 @@ export const VerificationInspector: React.FC<{
                   )}
 
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-slate-400 mb-0.5">
+                    <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">
                       5. Committed State Mutation
                     </div>
-                    <pre className="p-2 rounded bg-slate-950 border border-slate-800 font-mono text-[10px] text-emerald-300 overflow-x-auto">
+                    <pre className="p-2 rounded bg-stone-950 border border-white/10 font-mono text-[10px] text-emerald-300 overflow-x-auto">
                       {Object.keys(trace.finalCommittedChanges).length > 0
                         ? JSON.stringify(trace.finalCommittedChanges, null, 2)
                         : '{} // No state flags mutated (Protected)'}
@@ -585,11 +615,11 @@ function FlagBadge({ label, value }: { label: string; value: boolean }) {
       className={`px-2 py-1 rounded border flex items-center justify-between ${
         value
           ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
-          : 'bg-slate-950/80 border-slate-800 text-slate-400'
+          : 'bg-stone-950/80 border-white/10 text-stone-400'
       }`}
     >
       <span className="truncate">{label}</span>
-      <span className={value ? 'text-emerald-400 font-bold' : 'text-slate-600'}>
+      <span className={value ? 'text-emerald-400 font-bold' : 'text-stone-600'}>
         {value ? 'TRUE' : 'FALSE'}
       </span>
     </div>

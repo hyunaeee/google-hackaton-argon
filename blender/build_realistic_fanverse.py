@@ -1,25 +1,25 @@
 """
 Build the realistic FANVERSE VIP Backstage Green Room & Realistic Human Cast
-strictly using the user's two skills:
-1. `.agents/skills/apartment-vr-tour` (`ps_lib.py` & `ps_parts.py` + Poly Haven CC0 PBR textures & 3D glTF models)
-2. `.agents/skills/blender-realistic-people` (Microsoft Rocketbox rigged human FBX + native mocap cache + appearance tuning)
+strictly using:
+1. Higgsfield / Tripo 3D / Hyper3D Rodin generated GLB override loader (`assets/models/generated/<name>.glb`)
+2. `.agents/skills/apartment-vr-tour` (`ps_lib.py` & `ps_parts.py` + Poly Haven CC0 PBR textures & 3D glTF models)
+3. `.agents/skills/blender-realistic-people` (Microsoft Rocketbox rigged human FBX + native mocap cache + K-POP idol appearance tuning)
 
 Warm, realistic architectural interior tone (NO cyberpunk purple/neon).
 Exports `/Users/hyunaeee/Desktop/google-hackaton/client/public/models/backstage_room.glb`
 and renders `/Users/hyunaeee/Desktop/google-hackaton/assets/references/blender_skill_v3_preview.png`.
 """
-import gzip
 import math
 import os
-import pickle
 import sys
 import bpy
-from mathutils import Euler, Matrix, Quaternion, Vector
+from mathutils import Euler, Matrix, Vector
 
 ROOT_DIR = "/Users/hyunaeee/Desktop/google-hackaton"
 APT_UNITS_DIR = os.path.join(ROOT_DIR, ".agents/skills/apartment-vr-tour/scripts/units")
 PEOPLE_RUNTIME_DIR = os.path.join(ROOT_DIR, ".agents/skills/blender-realistic-people/assets/runtime")
 ROCKETBOX_DIR = os.path.join(ROOT_DIR, "blender/rocketbox_assets")
+GENERATED_GLB_DIR = os.path.join(ROOT_DIR, "assets/models/generated")
 GLB_OUT = os.path.join(ROOT_DIR, "client/public/models/backstage_room.glb")
 PREVIEW_OUT = os.path.join(ROOT_DIR, "assets/references/blender_skill_v3_preview.png")
 
@@ -39,9 +39,14 @@ def _load_tga_image(path, noncolor=False):
     return image
 
 
-def _build_rocketbox_material(old_mat, texture_dir: Path):
+def _build_rocketbox_material(old_mat, texture_dir: Path, garment_tint=None, hair_multiply=None):
     base = old_mat.name.split(".")[0]
-    name = "Rocketbox_" + base
+    suffix = ""
+    if garment_tint and "_body" in base:
+        suffix = "_tinted"
+    elif hair_multiply and "_opacity" in base:
+        suffix = "_hairtint"
+    name = "Rocketbox_" + base + suffix
     existing = bpy.data.materials.get(name)
     if existing:
         return existing
@@ -55,26 +60,49 @@ def _build_rocketbox_material(old_mat, texture_dir: Path):
     bsdf = nodes.new("ShaderNodeBsdfPrincipled")
     bsdf.location = (380, 0)
     links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
-    bsdf.inputs["Roughness"].default_value = 0.58
+    bsdf.inputs["Roughness"].default_value = 0.52 if "_body" in base else 0.58
     if "Specular IOR Level" in bsdf.inputs:
-        bsdf.inputs["Specular IOR Level"].default_value = 0.28
+        bsdf.inputs["Specular IOR Level"].default_value = 0.34 if "_body" in base else 0.28
 
     colorpath = texture_dir / f"{base}_color.tga"
     if colorpath.exists():
         tex = nodes.new("ShaderNodeTexImage")
         tex.location = (-620, 260)
         tex.image = _load_tga_image(colorpath, False)
-        links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        color_socket = tex.outputs["Color"]
+
+        if garment_tint and "_body" in base:
+            mix = nodes.new("ShaderNodeMixRGB")
+            mix.blend_type = "SOFT_LIGHT"
+            mix.inputs[0].default_value = 0.42
+            mix.inputs[2].default_value = (*garment_tint, 1.0)
+            mix.location = (-220, 260)
+            links.new(color_socket, mix.inputs[1])
+            color_socket = mix.outputs["Color"]
+        elif hair_multiply and "_opacity" in base:
+            mix = nodes.new("ShaderNodeMixRGB")
+            mix.blend_type = "MULTIPLY"
+            mix.inputs[0].default_value = 0.85
+            mix.inputs[2].default_value = (*hair_multiply, 1.0)
+            mix.location = (-220, 260)
+            links.new(color_socket, mix.inputs[1])
+            color_socket = mix.outputs["Color"]
+
+        links.new(color_socket, bsdf.inputs["Base Color"])
         if "_opacity" in base:
             links.new(tex.outputs["Alpha"], bsdf.inputs["Alpha"])
             if hasattr(mat, "surface_render_method"):
                 mat.surface_render_method = "DITHERED"
-            bsdf.inputs["Roughness"].default_value = 0.62
+            bsdf.inputs["Roughness"].default_value = 0.45
+
+    specpath = texture_dir / f"{base}_specular.tga"
+    if specpath.exists() and "Coat Weight" in bsdf.inputs and "_body" in base:
+        bsdf.inputs["Coat Weight"].default_value = 0.18
 
     if "_head" in base:
         if "Subsurface Weight" in bsdf.inputs:
-            bsdf.inputs["Subsurface Weight"].default_value = 0.065
-        bsdf.inputs["Roughness"].default_value = 0.47
+            bsdf.inputs["Subsurface Weight"].default_value = 0.08
+        bsdf.inputs["Roughness"].default_value = 0.42
 
     normalpath = texture_dir / f"{base}_normal.tga"
     if normalpath.exists():
@@ -83,13 +111,13 @@ def _build_rocketbox_material(old_mat, texture_dir: Path):
         normtex.image = _load_tga_image(normalpath, True)
         normal = nodes.new("ShaderNodeNormalMap")
         normal.location = (110, -100)
-        normal.inputs["Strength"].default_value = 0.5 if "_head" in base else 0.7
+        normal.inputs["Strength"].default_value = 0.5 if "_head" in base else 0.75
         links.new(normtex.outputs["Color"], normal.inputs["Color"])
         links.new(normal.outputs["Normal"], bsdf.inputs["Normal"])
     return mat
 
 
-def resolve_tga_textures(meshes, folder_name: str):
+def resolve_tga_textures(meshes, folder_name: str, garment_tint=None, hair_multiply=None):
     """Bind 2048px Rocketbox TGA textures from `<folder_name>/Textures/`."""
     tex_dir = Path(ROCKETBOX_DIR) / folder_name / "Textures"
     for mesh in meshes:
@@ -99,7 +127,66 @@ def resolve_tga_textures(meshes, folder_name: str):
             poly.use_smooth = True
         for slot in mesh.material_slots:
             if slot.material:
-                slot.material = _build_rocketbox_material(slot.material, tex_dir)
+                slot.material = _build_rocketbox_material(
+                    slot.material, tex_dir, garment_tint=garment_tint, hair_multiply=hair_multiply
+                )
+
+
+def try_import_generated_glb(name: str, loc, rz_deg: float, target_height: float):
+    """If `assets/models/generated/<name>.glb` exists (from Tripo 3D / Rodin / Higgsfield), import and normalize it."""
+    glb_path = os.path.join(GENERATED_GLB_DIR, f"{name}.glb")
+    if not os.path.exists(glb_path) or os.path.getsize(glb_path) < 1024:
+        return None
+
+    print(f"[HIGGSFIELD/TRIPO GLB] Loading generated 3D asset for {name}: {glb_path}")
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=glb_path)
+    imported = [o for o in bpy.data.objects if o not in before]
+    meshes = [o for o in imported if o.type == "MESH"]
+    if not meshes:
+        for o in imported:
+            bpy.data.objects.remove(o, do_unlink=True)
+        return None
+
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    baked_meshes = []
+    for m in meshes:
+        eval_obj = m.evaluated_get(depsgraph)
+        new_mesh = bpy.data.meshes.new_from_object(eval_obj, preserve_all_data_layers=True, depsgraph=depsgraph)
+        new_mesh.transform(m.matrix_world)
+        baked_obj = bpy.data.objects.new(f"{name}_gen_part", new_mesh)
+        bpy.context.scene.collection.objects.link(baked_obj)
+        baked_meshes.append(baked_obj)
+
+    for o in imported:
+        if o.name in bpy.data.objects:
+            bpy.data.objects.remove(o, do_unlink=True)
+
+    bpy.ops.object.select_all(action="DESELECT")
+    for bm in baked_meshes:
+        bm.select_set(True)
+    bpy.context.view_layer.objects.active = baked_meshes[0]
+    if len(baked_meshes) > 1:
+        bpy.ops.object.join()
+    obj = bpy.context.view_layer.objects.active
+
+    verts = [obj.matrix_world @ v.co for v in obj.data.vertices]
+    min_z = min(v.z for v in verts)
+    max_z = max(v.z for v in verts)
+    cur_h = max(0.005, max_z - min_z)
+    scale_factor = target_height / cur_h
+    cx = sum(v.x for v in verts) / len(verts)
+    cy = sum(v.y for v in verts) / len(verts)
+
+    T1 = Matrix.Translation((-cx, -cy, -min_z))
+    S = Matrix.Scale(scale_factor, 4)
+    obj.data.transform(S @ T1)
+    obj.matrix_world = Matrix.Identity(4)
+
+    root_empty = L.node(name, loc=loc, rz=rz_deg)
+    obj.name = f"{name}_mesh"
+    obj.parent = root_empty
+    return root_empty
 
 
 def apply_mocap_frame(arm_obj, sex="m", mode="walk", frame_idx=12):
@@ -151,8 +238,23 @@ def apply_mocap_frame(arm_obj, sex="m", mode="walk", frame_idx=12):
     bpy.context.view_layer.update()
 
 
-def bake_posed_character(name, folder_name, model_name, loc, rz_deg, target_height=1.72, clip_name="idle", frame_idx=12, extra_bones=None):
-    """Import a Rocketbox rigged character, pose via mocap cache, and bake into a named mesh node."""
+def bake_posed_character(
+    name,
+    folder_name,
+    model_name,
+    loc,
+    rz_deg,
+    target_height=1.72,
+    clip_name="idle",
+    frame_idx=12,
+    garment_tint=None,
+    hair_multiply=None,
+):
+    """Import a generated GLB override if present; otherwise pose Rocketbox rigged character with K-POP styling."""
+    gen_override = try_import_generated_glb(name, loc=loc, rz_deg=rz_deg, target_height=target_height)
+    if gen_override is not None:
+        return gen_override
+
     fbx_path = os.path.join(ROCKETBOX_DIR, folder_name, "Export", f"{model_name}.fbx")
     if not os.path.exists(fbx_path):
         raise FileNotFoundError(f"Missing Rocketbox FBX: {fbx_path}")
@@ -163,7 +265,7 @@ def bake_posed_character(name, folder_name, model_name, loc, rz_deg, target_heig
 
     arm_obj = next((o for o in imported if o.type == "ARMATURE"), None)
     meshes = [o for o in imported if o.type == "MESH"]
-    resolve_tga_textures(meshes, folder_name)
+    resolve_tga_textures(meshes, folder_name, garment_tint=garment_tint, hair_multiply=hair_multiply)
 
     if arm_obj:
         sex = "f" if "Female" in folder_name else "m"
@@ -219,15 +321,17 @@ def build_scene():
     P.init_mats()
     M = P.M
 
-    # Custom warm architectural materials (no neon cyberpunk)
+    # Custom warm architectural & stage materials (no neon cyberpunk)
     m_warm_bulb = L.emit("WarmTungstenBulb", (1.0, 0.89, 0.72), 4.5)
     m_warm_strip = L.emit("WarmCoveLED", (1.0, 0.91, 0.76), 2.8)
     m_green_led = L.emit("StatusGreenLED", (0.20, 0.86, 0.48), 3.5)
     m_amber_led = L.emit("StatusAmberLED", (0.98, 0.68, 0.22), 3.5)
     m_stage_sign = L.emit("StageSignWarm", (0.98, 0.82, 0.52), 3.2)
-    m_gold_card = L.mat("GoldKeycard", (0.86, 0.71, 0.38), rough=0.22, metal=0.85, Coat_Weight=0.8)
-    m_spruce = L.mat("SpruceTop", (0.82, 0.61, 0.36), rough=0.32, Coat_Weight=0.6)
-    m_champagne = L.mat("ChampagneMetal", (0.86, 0.82, 0.75), rough=0.20, metal=0.90)
+    m_gold_card = L.mat("GoldKeycard", (0.86, 0.71, 0.38), rough=0.18, metal=0.88, Coat_Weight=0.85)
+    m_spruce = L.mat("SpruceTop", (0.82, 0.61, 0.36), rough=0.28, Coat_Weight=0.65)
+    m_champagne = L.mat("ChampagneMetal", (0.88, 0.83, 0.74), rough=0.16, metal=0.92, Coat_Weight=0.7)
+    m_mic_grille = L.mat("MicMeshGrille", (0.76, 0.77, 0.80), rough=0.28, metal=0.95)
+    m_starlight_gem = L.emit("StarlightCrystalRing", (1.0, 0.92, 0.78), 3.8)
     m_screen = L.emit("MonitorScreen", (0.16, 0.22, 0.28), 1.4)
 
     # Room dimensions: X from -4.2 to +4.2 (8.4m wide), Y from -3.4 to +3.4 (6.8m deep), Z from 0 to 3.1m
@@ -243,12 +347,10 @@ def build_scene():
     L.box(arch, "LoungeRug", (-2.1, -1.5, 0.001), (2.1, 1.4, 0.014), M.rug, bevel=0.006)
 
     # 2. Walls (Poly Haven Warm Plaster + Architectural Oak Acoustic Slat Wainscoting)
-    # Back wall (Y = -D2) with doorway opening X in [-0.75, +0.75], Z in [0, 2.35]
     L.box(arch, "WallBackLeft", (-W2, -D2 - 0.12, 0.0), (-0.75, -D2, H), M.wall, bevel=0.003)
     L.box(arch, "WallBackRight", (0.75, -D2 - 0.12, 0.0), (W2, -D2, H), M.wall, bevel=0.003)
     L.box(arch, "WallBackHeader", (-0.75, -D2 - 0.12, 2.35), (0.75, -D2, H), M.wall, bevel=0.003)
 
-    # Left wall (X = -W2) & Right wall (X = +W2)
     L.box(arch, "WallLeft", (-W2 - 0.12, -D2, 0.0), (-W2, D2, H), M.wall, bevel=0.003)
     L.box(arch, "WallRight", (W2, -D2, 0.0), (W2 + 0.12, D2, H), M.wall, bevel=0.003)
 
@@ -258,7 +360,7 @@ def build_scene():
     L.box(arch, "CeilingCoveRight", (W2 - 0.30, -D2 + 0.3, H - 0.04), (W2 - 0.25, D2 - 0.3, H), m_warm_strip, bevel=0.001)
     L.box(arch, "CeilingCoveBack", (-W2 + 0.3, -D2 + 0.25, H - 0.04), (W2 - 0.3, -D2 + 0.30, H), m_warm_strip, bevel=0.001)
 
-    # Oak Acoustic Slat Panels along back wall & side walls
+    # Oak Acoustic Slat Panels along back wall
     for i in range(18):
         x_left = -3.95 + i * 0.16
         if x_left < -0.95:
@@ -275,7 +377,6 @@ def build_scene():
     # INTERACTIVE HOTSPOT 1: `vanity_table` (Left Wall, X = -2.95, Y = -0.75)
     # =========================================================================
     vanity = L.node("vanity_table", loc=(-2.95, -0.75, 0.0), rz=-90.0)
-    # Walnut cabinetry base + Cream Marble slab top
     L.box(vanity, "VanityCabinet", (-0.85, -0.34, 0.0), (-0.38, 0.34, 0.74), M.walnut, bevel=0.004)
     L.box(vanity, "VanityCabinetR", (0.38, -0.34, 0.0), (0.85, 0.34, 0.74), M.walnut, bevel=0.004)
     L.box(vanity, "VanityCenterApron", (-0.38, -0.32, 0.62), (0.38, 0.32, 0.74), M.walnut, bevel=0.004)
@@ -335,6 +436,7 @@ def build_scene():
     card_node = L.node("access_card", loc=(-2.72, -0.32, 0.79), rz=28.0)
     L.box(card_node, "VIPCardHolder", (-0.075, -0.050, 0.0), (0.075, 0.050, 0.008), M.black, bevel=0.002)
     L.box(card_node, "VIPGoldCard", (-0.068, -0.044, 0.006), (0.068, 0.044, 0.014), m_gold_card, bevel=0.002)
+    L.box(card_node, "VIPCardRFIDChip", (-0.045, -0.012, 0.014), (-0.022, 0.012, 0.0165), m_champagne, bevel=0.001)
     L.box(card_node, "VIPCardBadgeGlow", (-0.055, -0.030, 0.014), (0.055, -0.018, 0.017), m_warm_bulb, bevel=0.001)
     L.pipe(
         card_node,
@@ -350,13 +452,11 @@ def build_scene():
     # INTERACTIVE HOTSPOT 3: `equipment_locker` (Right Side, X = 2.65, Y = -1.65)
     # =========================================================================
     locker = L.node("equipment_locker", loc=(2.65, -1.65, 0.0), rz=-25.0)
-    # Dark brushed-steel & walnut studio security cabinet
     L.box(locker, "LockerOuterShell", (-0.48, -0.34, 0.0), (0.48, 0.34, 1.88), M.black, bevel=0.005)
     L.box(locker, "LockerWalnutSurround", (-0.50, -0.35, 0.04), (0.50, 0.32, 1.86), M.walnut, bevel=0.004)
     L.box(locker, "LockerInteriorCavity", (-0.42, -0.28, 0.12), (0.42, 0.28, 1.76), M.leather_d, bevel=0.002)
     L.box(locker, "LockerShelfMid", (-0.42, -0.26, 0.94), (0.42, 0.26, 0.97), M.steel, bevel=0.002)
     L.box(locker, "LockerShelfUpper", (-0.42, -0.26, 1.38), (0.42, 0.26, 1.41), M.steel, bevel=0.002)
-    # RFID Reader Module on right stiles
     L.box(locker, "RFIDReaderBox", (0.37, 0.32, 1.05), (0.46, 0.365, 1.24), M.black, bevel=0.003)
     L.box(locker, "RFIDStatusLED", (0.39, 0.363, 1.19), (0.44, 0.369, 1.215), m_green_led, bevel=0.001)
     # Rigged glass-inlaid locker door (`RIG_locker_door`, slightly ajar so microphone inside is visible)
@@ -366,35 +466,49 @@ def build_scene():
     L.cyl(rig_locker, "LockerDoorHandle", (0.72, 0.03, -0.14), (0.72, 0.03, 0.14), 0.010, M.brass, segs=16)
 
     # =========================================================================
-    # INTERACTIVE HOTSPOT 4: `microphone` (Custom Wireless Vocal Mic at Locker Cradle)
+    # INTERACTIVE HOTSPOT 4: `microphone` (Starlight Custom Vocal Mic at Locker Cradle)
     # =========================================================================
     mic_node = L.node("microphone", loc=(2.62, -1.58, 1.02), rz=-25.0)
-    # Foam-lined presentation cradle + Lathed Champagne-Silver Custom Wireless Microphone
-    L.box(mic_node, "MicCradleBase", (-0.14, -0.10, -0.04), (0.14, 0.10, 0.02), M.black, bevel=0.004)
+    L.box(mic_node, "MicCradleBase", (-0.15, -0.11, -0.04), (0.15, 0.11, 0.022), M.black, bevel=0.005)
+    L.box(mic_node, "MicCradleVelvetInlay", (-0.12, -0.08, 0.018), (0.12, 0.08, 0.028), M.leather_d, bevel=0.003)
     L.lathe(
         mic_node,
         "StarlightMicBody",
         [
             (0.0, 0.0),
-            (0.017, 0.0),
-            (0.019, 0.14),
-            (0.024, 0.175),
-            (0.032, 0.195),
-            (0.034, 0.235),
-            (0.024, 0.265),
-            (0.0, 0.272),
+            (0.016, 0.0),
+            (0.017, 0.035),
+            (0.019, 0.135),
+            (0.023, 0.172),
+            (0.026, 0.188),
+            (0.0, 0.190),
         ],
         m_champagne,
-        segs=28,
-        loc=(0.0, 0.0, 0.02),
+        segs=32,
+        loc=(0.0, 0.0, 0.025),
     )
-    L.cyl(mic_node, "MicBrassRing", (0.0, 0.0, 0.192), (0.0, 0.0, 0.202), 0.027, M.brass, segs=24)
+    L.lathe(
+        mic_node,
+        "StarlightMicCapsuleGrille",
+        [
+            (0.0, 0.188),
+            (0.027, 0.188),
+            (0.035, 0.205),
+            (0.036, 0.238),
+            (0.026, 0.268),
+            (0.0, 0.276),
+        ],
+        m_mic_grille,
+        segs=32,
+        loc=(0.0, 0.0, 0.025),
+    )
+    L.cyl(mic_node, "MicStarlightCrystalRing", (0.0, 0.0, 0.208), (0.0, 0.0, 0.218), 0.0285, m_starlight_gem, segs=28)
+    L.box(mic_node, "MicOLEDStatusDisplay", (-0.006, 0.017, 0.115), (0.006, 0.020, 0.152), m_amber_led, bevel=0.001)
 
     # =========================================================================
     # INTERACTIVE HOTSPOT 5: `acoustic_guitar` (Beside Lounge Sofa, X = 1.85, Y = 0.85)
     # =========================================================================
     guitar_node = L.node("acoustic_guitar", loc=(1.85, 0.85, 0.0), rz=-135.0)
-    # Tubular metal A-frame guitar stand
     L.pipe(
         guitar_node,
         "GuitarStandFrame",
@@ -403,11 +517,11 @@ def build_scene():
         M.black,
         bend=0.03,
     )
-    # Realistic figure-8 acoustic guitar body + neck + headstock
     g_body = L.node("GuitarBodyGroup", parent=guitar_node, loc=(0.0, 0.02, 0.14))
     g_body.rotation_euler = Euler((math.radians(14.0), 0.0, 0.0), "XYZ")
-    L.cyl(g_body, "GuitarLowerBout", (0.0, -0.05, 0.18), (0.0, 0.05, 0.18), 0.21, m_spruce, segs=32, bevel=0.008)
-    L.cyl(g_body, "GuitarUpperBout", (0.0, -0.048, 0.40), (0.0, 0.048, 0.40), 0.155, m_spruce, segs=32, bevel=0.008)
+    L.cyl(g_body, "GuitarLowerBout", (0.0, -0.05, 0.18), (0.0, 0.05, 0.18), 0.21, m_spruce, segs=36, bevel=0.008)
+    L.cyl(g_body, "GuitarUpperBout", (0.0, -0.048, 0.40), (0.0, 0.048, 0.40), 0.155, m_spruce, segs=36, bevel=0.008)
+    L.cyl(g_body, "GuitarRosetteRing", (0.0, 0.047, 0.32), (0.0, 0.051, 0.32), 0.068, M.brass, segs=28)
     L.cyl(g_body, "GuitarSoundhole", (0.0, 0.048, 0.32), (0.0, 0.053, 0.32), 0.055, M.black, segs=24)
     L.box(g_body, "GuitarBridge", (-0.07, 0.048, 0.17), (0.07, 0.056, 0.20), M.walnut, bevel=0.002)
     L.box(g_body, "GuitarNeck", (-0.026, 0.01, 0.50), (0.026, 0.045, 0.98), M.walnut, bevel=0.003)
@@ -420,7 +534,6 @@ def build_scene():
     L.box(rack, "AudioDeskCredenza", (-0.68, -0.36, 0.0), (0.68, 0.36, 0.78), M.walnut, bevel=0.005)
     L.box(rack, "AudioDeskTop", (-0.72, -0.38, 0.78), (0.72, 0.38, 0.82), M.marble_d, bevel=0.004)
     L.box(rack, "MixerUnit", (-0.42, -0.22, 0.82), (0.42, 0.22, 0.94), M.black, bevel=0.004)
-    # Wall monitor display above audio rack
     L.box(rack, "MonitorFrame", (-0.58, -0.34, 1.28), (0.58, -0.29, 1.94), M.black, bevel=0.004)
     L.box(rack, "MonitorPanel", (-0.54, -0.289, 1.32), (0.54, -0.285, 1.90), m_screen, bevel=0.001)
     L.box(rack, "MonitorTimerBar", (-0.46, -0.284, 1.76), (0.12, -0.281, 1.83), m_amber_led, bevel=0.001)
@@ -429,14 +542,12 @@ def build_scene():
     # INTERACTIVE HOTSPOT 7: `stage_door` (Center Back Wall, X = 0.0, Y = -3.35)
     # =========================================================================
     sdoor = L.node("stage_door", loc=(0.0, -3.35, 0.0), rz=0.0)
-    # Heavy brushed-bronze portal frame + Illuminated Warm ON AIR sign
     L.box(sdoor, "StageDoorFrameL", (-0.82, -0.10, 0.0), (-0.70, 0.10, 2.42), M.bronze, bevel=0.004)
     L.box(sdoor, "StageDoorFrameR", (0.70, -0.10, 0.0), (0.82, 0.10, 2.42), M.bronze, bevel=0.004)
     L.box(sdoor, "StageDoorHeader", (-0.82, -0.10, 2.32), (0.82, 0.10, 2.46), M.bronze, bevel=0.004)
     L.box(sdoor, "OnAirHousing", (-0.48, 0.04, 2.50), (0.48, 0.14, 2.74), M.black, bevel=0.004)
     L.box(sdoor, "OnAirSignGlow", (-0.44, 0.138, 2.53), (0.44, 0.146, 2.71), m_stage_sign, bevel=0.002)
 
-    # Rigged double soundproof doors (`RIG_stage_door`)
     rig_sdoor = L.rig(sdoor, "stage_door", "Stage Entrance Door", "hinge", loc=(-0.70, 0.0, 1.16), axis=(0, 0, 1), amount=1.45)
     L.box(rig_sdoor, "StageDoorLeafL", (0.0, -0.045, -1.15), (0.695, 0.045, 1.15), M.walnut, bevel=0.005)
     L.box(rig_sdoor, "StageDoorWindowL", (0.20, -0.05, 0.20), (0.50, 0.05, 0.72), M.glass, bevel=0.002)
@@ -450,7 +561,6 @@ def build_scene():
     # LOUNGE FURNITURE & REAL POLY HAVEN 3D MODELS (`apartment-vr-tour`)
     # =========================================================================
     lounge = L.node("backstage_lounge_furniture")
-    # Upholstered Boucle Sofa in center-right lounge area (X = 0.25, Y = 0.95)
     sofa = L.node("LoungeSofa", parent=lounge, loc=(0.25, 0.95, 0.0), rz=180.0)
     L.box(sofa, "SofaPlinth", (-1.05, -0.45, 0.0), (1.05, 0.45, 0.12), M.walnut, bevel=0.004)
     L.softbox(sofa, "SofaSeatL", (1.00, 0.82, 0.28), M.boucle, r=0.06, crown=0.02, loc=(-0.51, 0.0, 0.12))
@@ -459,33 +569,42 @@ def build_scene():
     L.softbox(sofa, "SofaArmL", (0.20, 0.88, 0.46), M.boucle, r=0.05, crown=0.015, loc=(-1.04, 0.0, 0.12))
     L.softbox(sofa, "SofaArmR", (0.20, 0.88, 0.46), M.boucle, r=0.05, crown=0.015, loc=(1.04, 0.0, 0.12))
 
-    # Marble & Walnut Coffee Table in front of sofa (X = 0.25, Y = 0.0)
     L.cyl(lounge, "CoffeeTableBase", (0.25, 0.0, 0.0), (0.25, 0.0, 0.34), 0.32, M.walnut, segs=32, bevel=0.004)
     L.cyl(lounge, "CoffeeTableTop", (0.25, 0.0, 0.34), (0.25, 0.0, 0.38), 0.56, M.marble, segs=36, bevel=0.005)
 
     # Convert procedural curves/modifiers to meshes BEFORE importing Poly Haven glTFs and Rocketbox characters
     L.finalize()
 
-    # Place real Poly Haven 3D glTF assets from `.agents/skills/apartment-vr-tour/scripts/units/models/`
+    # Place real Poly Haven 3D glTF assets (furniture, plants, instruments, studio audio gear)
     L.model(lounge, "mid_century_lounge_chair", name="LoungeAccentChair", loc=(-1.35, 0.65, 0.0), rz=135.0, height=0.82)
     L.model(lounge, "potted_plant_02", name="BackstagePlantLeft", loc=(-3.45, -2.65, 0.0), rz=25.0, height=1.25)
     L.model(lounge, "potted_plant_04", name="BackstagePlantRight", loc=(3.45, 1.95, 0.0), rz=-40.0, height=1.15)
     L.model(lounge, "ceramic_vase_03", name="CoffeeTableVase", loc=(0.15, -0.05, 0.38), rz=0.0, height=0.26)
     L.model(lounge, "book_encyclopedia_set_01", name="CoffeeTableBooks", loc=(0.42, 0.08, 0.38), rz=35.0, height=0.16)
+    # Real scanned 1K PBR instrument & audio equipment props
+    L.model(guitar_node, "Ukulele_01", name="CompanionAcousticInstrument", loc=(-0.24, 0.12, 0.01), rz=18.0, height=0.68)
+    L.model(rack, "boombox", name="StudioMonitorDeck", loc=(-0.48, 0.02, 0.82), rz=12.0, height=0.22)
+    L.model(locker, "cassette_player", name="InEarMonitorPack", loc=(0.12, 0.0, 1.41), rz=-15.0, height=0.14)
+
+    # Also allow external generated GLB overrides for props if present in `assets/models/generated/`
+    try_import_generated_glb("microphone_override", loc=(2.62, -1.58, 1.04), rz_deg=-25.0, target_height=0.26)
+    try_import_generated_glb("acoustic_guitar_override", loc=(1.85, 0.85, 0.02), rz_deg=-135.0, target_height=1.02)
 
     # =========================================================================
-    # REALISTIC HUMAN CHARACTERS (`blender-realistic-people` Rocketbox + Mocap)
+    # K-POP IDOL & BACKSTAGE CAST (`Female_Party_02` + `Male_Adult_10` + `Male_Adult_09` or Tripo/Higgsfield GLB)
     # =========================================================================
-    # 1. `hana_character` — Lead Vocalist Hana near the vanity table, facing the Protagonist
+    # 1. `hana_character` — K-POP Lead Vocalist Hana in stage party outfit (`Female_Party_02`)
     bake_posed_character(
         name="hana_character",
-        folder_name="Female_Adult_03",
-        model_name="Female_Adult_03_facial",
+        folder_name="Female_Party_02",
+        model_name="Female_Party_02_facial",
         loc=(-1.75, -0.65, 0.0),
         rz_deg=115.0,
-        target_height=1.66,
+        target_height=1.68,
         clip_name="talk",
         frame_idx=18,
+        garment_tint=(0.96, 0.86, 0.92),
+        hair_multiply=(0.82, 0.68, 0.62),
     )
 
     # 2. `jiho_character` — Stage Director Jiho near the audio rack & stage door
@@ -495,9 +614,10 @@ def build_scene():
         model_name="Male_Adult_10_facial",
         loc=(1.35, -2.05, 0.0),
         rz_deg=-25.0,
-        target_height=1.77,
+        target_height=1.78,
         clip_name="idle",
         frame_idx=14,
+        garment_tint=(0.22, 0.24, 0.28),
     )
 
     # 3. `protagonist_character` — The Player / Road Manager standing in the room facing Hana & stage door
@@ -507,7 +627,7 @@ def build_scene():
         model_name="Male_Adult_09_facial",
         loc=(-0.45, 0.35, 0.0),
         rz_deg=-35.0,
-        target_height=1.78,
+        target_height=1.79,
         clip_name="idle",
         frame_idx=8,
     )

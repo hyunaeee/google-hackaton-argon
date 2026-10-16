@@ -35,12 +35,53 @@ export function createApp() {
     return 'default';
   };
 
-  const getWorldState = (req: express.Request): WorldState => {
+  const getRequestLang = (
+    req: express.Request,
+    bodyLang?: 'en' | 'ko'
+  ): 'en' | 'ko' => {
+    if (bodyLang === 'ko' || bodyLang === 'en') {
+      return bodyLang;
+    }
+    const queryLang = req.query?.lang;
+    if (queryLang === 'ko' || queryLang === 'en') {
+      return queryLang;
+    }
+    const headerLang = req.headers['x-lang'];
+    if (headerLang === 'ko') {
+      return 'ko';
+    }
+    return 'en';
+  };
+
+  const localizeInitialStateTurn = (
+    state: WorldState,
+    lang: 'en' | 'ko'
+  ): WorldState => {
+    const template = createInitialWorldState(lang);
+    state.episodeTitle = template.episodeTitle;
+    if (state.history.length > 0 && state.history[0].id === 'evt-init-0') {
+      state.history[0] = {
+        ...state.history[0],
+        playerInput: template.history[0].playerInput,
+        npcResponse: template.history[0].npcResponse,
+        narration: template.history[0].narration,
+      };
+    }
+    return state;
+  };
+
+  const getWorldState = (
+    req: express.Request,
+    langOverride?: 'en' | 'ko'
+  ): WorldState => {
     const sid = getSessionId(req);
+    const lang = getRequestLang(req, langOverride);
     let state = sessionStates.get(sid);
     if (!state) {
-      state = createInitialWorldState();
+      state = createInitialWorldState(lang);
       sessionStates.set(sid, state);
+    } else {
+      localizeInitialStateTurn(state, lang);
     }
     return state;
   };
@@ -68,24 +109,18 @@ export function createApp() {
   });
 
   app.post('/api/reset', (req, res) => {
-    const freshState = createInitialWorldState();
+    const bodyLang =
+      req.body && (req.body.lang === 'ko' || req.body.lang === 'en')
+        ? req.body.lang
+        : undefined;
+    const lang = getRequestLang(req, bodyLang);
+    const freshState = createInitialWorldState(lang);
     setWorldState(req, freshState);
     res.json({
       ok: true,
       worldState: freshState,
     });
   });
-
-  const getRequestLang = (req: express.Request, bodyLang?: 'en' | 'ko'): 'en' | 'ko' => {
-    if (bodyLang === 'ko' || bodyLang === 'en') {
-      return bodyLang;
-    }
-    const headerLang = req.headers['x-lang'];
-    if (headerLang === 'ko') {
-      return 'ko';
-    }
-    return 'en';
-  };
 
   const ActionRequestSchema = z.object({
     playerInput: z.string().trim().min(1).max(600),
@@ -104,7 +139,7 @@ export function createApp() {
       ? parsed.data.styleId
       : 'NAVER_ROMANCE_IDOL';
     const lang = getRequestLang(req, parsed.success ? parsed.data.lang : undefined);
-    const currentState = getWorldState(req);
+    const currentState = getWorldState(req, lang);
 
     try {
       const episode = await generateFullWebtoonEpisode(
@@ -118,7 +153,11 @@ export function createApp() {
       });
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : 'Failed to generate webtoon episode';
+        err instanceof Error
+          ? err.message
+          : lang === 'ko'
+            ? '웹툰 단행본 생성에 실패했습니다.'
+            : 'Failed to generate webtoon episode';
       res.status(500).json({
         ok: false,
         message,
@@ -127,20 +166,25 @@ export function createApp() {
   });
 
   app.post('/api/action', async (req, res) => {
-    const currentState = getWorldState(req);
     const parsed = ActionRequestSchema.safeParse(req.body);
+    const lang = getRequestLang(
+      req,
+      parsed.success ? parsed.data.lang : undefined
+    );
+    const currentState = getWorldState(req, lang);
     if (!parsed.success) {
       res.status(400).json({
         ok: false,
         errorCode: 'INVALID_INPUT',
         recoverable: true,
-        message: 'Please enter a valid action or dialogue message.',
+        message:
+          lang === 'ko'
+            ? '올바른 행동이나 대사를 입력해 주세요.'
+            : 'Please enter a valid action or dialogue message.',
         worldState: currentState,
       });
       return;
     }
-
-    const lang = getRequestLang(req, parsed.data.lang);
 
     try {
       const outcome = await executeStoryTurn(
@@ -167,7 +211,11 @@ export function createApp() {
       }
 
       const message =
-        err instanceof Error ? err.message : 'Unexpected server error';
+        err instanceof Error
+          ? err.message
+          : lang === 'ko'
+            ? '예기치 않은 서버 오류가 발생했습니다.'
+            : 'Unexpected server error';
       res.status(500).json({
         ok: false,
         errorCode: 'INTERNAL_ERROR',
