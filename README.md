@@ -5,6 +5,7 @@
 > An AI-orchestrated 3D interactive K-POP story universe & 10-cut Naver Webtoon studio powered by **Gemini 4 Argon (`gemini-4-argon`)**, **Blender 3D / MCP**, **React Three Fiber**, and a **Deterministic World Verification & Self-Correction Loop**. Deployed on **Google Cloud Run**.
 >
 > 🌐 **Live Google Cloud Run Demo:** [https://fanverse-dj3pyhgn3q-du.a.run.app](https://fanverse-dj3pyhgn3q-du.a.run.app)
+> 📦 **Public GitHub Repository:** [https://github.com/hyunaeee/google-hackaton-argon](https://github.com/hyunaeee/google-hackaton-argon)
 
 ---
 
@@ -14,9 +15,9 @@ Global K-POP fans, K-drama viewers, and webtoon readers want to step inside thei
 
 **FANVERSE** solves this by combining:
 1. **A 5-Act Interactive 3D K-POP Backstage World** (`backstage_room.glb` rendered in React Three Fiber with 10 cinematic camera presets and interactive `RIG_<name>` pivots).
-2. **Gemini 4 Argon Story Director (`gemini-4-argon`)** using the `@google/genai` Interactions API with strict JSON Schema output.
+2. **Gemini 4 Argon Story Director (`gemini-4-argon`)** using the `@google/genai` Interactions API (`ai.interactions.create`) with strict JSON Schema output, adaptive `thinking_level` (`low` → `medium`), and `previous_interaction_id` chaining.
 3. **A Deterministic Verification & 2-Step Self-Correction Loop** (`validateAction()`) that blocks illegal state mutations and feeds exact rule violations back to `gemini-4-argon` so characters respond in-world without corrupting canonical state.
-4. **A Long-Decode 10-Cut Naver Webtoon Generator** that transforms the player's verified playthrough and exact quotes into a downloadable vertical-scroll comic strip across **4 Korean Webtoon art styles** + **10-angle live 3D camera captures**.
+4. **A Long-Decode 10-Cut Naver Webtoon Generator** (`thinking_level: 'medium'`, `max_output_tokens: 16384`) that transforms the player's verified playthrough and exact quotes into a downloadable vertical-scroll comic strip across **4 Korean Webtoon art styles** + **10-angle live 3D camera captures**.
 
 ---
 
@@ -42,8 +43,9 @@ Player Input (3D Object Click, Voice Input, or Free-Form Text)
    │
    ▼
 Gemini 4 Argon Story Director (`gemini-4-argon` via `@google/genai` Interactions API)
-   │  Proposes structured JSON (`AIActionProposalSchema`):
-   │  { actionType, targetId, proposedStateChanges, speaker, npcResponse, narration, requestedEnding }
+   │  • 1st Pass: `thinking_level: 'low'` for snappy interactive gameplay
+   │  • Proposes structured JSON (`AIActionProposalSchema`):
+   │    { actionType, targetId, proposedStateChanges, speaker, npcResponse, narration, requestedEnding }
    ▼
 Deterministic World Validator (`validateAction()`)
    │  Enforces canonical preconditions & blocks side-channel mutations:
@@ -54,12 +56,14 @@ Deterministic World Validator (`validateAction()`)
    ├──► [VALID] ──► Commit State Changes ──► Trigger 3D Scene Animation, Audio SFX & Act Progression
    │
    └──► [INVALID] ──► Automatic Self-Correction Loop (Up to 2 Retries)
-                       │  Feeds exact deterministic rejection codes back to `gemini-4-argon`
+                       │  • Escalates `thinking_level: 'low' -> 'medium'`
+                       │  • Chains `previous_interaction_id` for stateful multi-turn reasoning
+                       │  • Feeds exact deterministic rejection codes back to `gemini-4-argon`
                        ▼
                      Grounded In-Character Explanation Returned (Authoritative WorldState Unchanged)
 ```
 
-Judges can inspect every proposal, rule evaluation, and retry attempt live in the right-hand **Verifier (Verification Inspector)** drawer.
+Judges can inspect every proposal, rule evaluation, `thinking_level` escalation, `previous_interaction_id` chain, and an interactive **5-Step Architecture & Pipeline Walkthrough** live in the right-hand **Verifier (Verification Inspector)** drawer.
 
 ---
 

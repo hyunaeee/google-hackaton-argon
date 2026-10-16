@@ -7,8 +7,9 @@
 ## Tagline
 **"Don't just follow the story. Become part of it."**
 
-## Live Google Cloud Run Deployment
-- **Production URL (Seoul `asia-northeast3`):** [https://fanverse-dj3pyhgn3q-du.a.run.app](https://fanverse-dj3pyhgn3q-du.a.run.app)
+## Links
+- **Live Google Cloud Run Deployment (Seoul `asia-northeast3`):** [https://fanverse-dj3pyhgn3q-du.a.run.app](https://fanverse-dj3pyhgn3q-du.a.run.app)
+- **Public GitHub Repository:** [https://github.com/hyunaeee/google-hackaton-argon](https://github.com/hyunaeee/google-hackaton-argon)
 - **Health & Model Verification Endpoint:** [https://fanverse-dj3pyhgn3q-du.a.run.app/api/health](https://fanverse-dj3pyhgn3q-du.a.run.app/api/health)
 
 ---
@@ -33,13 +34,13 @@ Players step into the VIP dressing room of fictional K-POP girl group **LUMINA**
 - **Act 5 (Two Canon Stage Endings):** Open the double-leaf **Stage Entrance Door** (`RIG_stage_door_L` / `RIG_stage_door_R`) to trigger either **Ending A: Showtime Saved** (full concert laser beams & synth fanfare) or **Ending B: Unplugged Encore** (golden spotlight acoustic performance).
 
 ### B. Gemini 4 Argon Story Director + Deterministic Verification & Correction Loop
-- **Structured World Orchestration (`gemini-4-argon`):** Uses `@google/genai` (`ai.interactions.create`) with strict JSON Schema output (`AIActionProposalSchema`) to translate free-form player dialogue and 3D interactions into discrete, verifiable actions (`INSPECT`, `TALK`, `PICK_UP`, `UNLOCK`, `HAND_OVER`, `SYNC_IEM`, `TUNE_GUITAR`, `PROPOSE_BACKUP`, `ENTER_STAGE`, `NO_OP`).
+- **Structured World Orchestration (`gemini-4-argon`):** Uses `@google/genai` (`ai.interactions.create`) with strict JSON Schema output (`AIActionProposalSchema`) and `thinking_level: 'low'` on 1st-pass interactive turns to translate free-form player dialogue and 3D interactions into discrete, verifiable actions (`INSPECT`, `TALK`, `PICK_UP`, `UNLOCK`, `HAND_OVER`, `SYNC_IEM`, `TUNE_GUITAR`, `PROPOSE_BACKUP`, `ENTER_STAGE`, `NO_OP`).
 - **Deterministic Rule Validator (`validateAction`):** Every proposal from `gemini-4-argon` is verified against canonical world preconditions before any state mutation occurs.
-- **2-Step Automatic Self-Correction Loop:** If Gemini proposes an invalid action (e.g., unlocking `equipment_locker` without `access_card`, grabbing `microphone` while locked, or opening `stage_door` before resolving the crisis), the validator blocks the state mutation and feeds the exact rejection code (`MISSING_ACCESS_CARD`, `MICROPHONE_INACCESSIBLE_LOCKER_LOCKED`, `CRISIS_UNRESOLVED_CANNOT_ENTER_STAGE`) back into `gemini-4-argon` (up to 2 automatic retries) to generate an in-character explanation while keeping `WorldState` 100% uncorrupted.
-- **Live Verification Inspector:** Judges can inspect every AI proposal, deterministic rule check, retry payload, and committed state diff in real time via the built-in **Verifier** drawer.
+- **2-Step Automatic Self-Correction Loop (`thinking_level` Escalation + `previous_interaction_id` Chaining):** If Gemini proposes an invalid action (e.g., unlocking `equipment_locker` without `access_card`, grabbing `microphone` while locked, or opening `stage_door` before resolving the crisis), the validator blocks the state mutation, escalates `thinking_level` from `'low'` to `'medium'`, chains `previous_interaction_id`, and feeds the exact rejection code (`MISSING_ACCESS_CARD`, `MICROPHONE_INACCESSIBLE_LOCKER_LOCKED`, `CRISIS_UNRESOLVED_CANNOT_ENTER_STAGE`) back into `gemini-4-argon` (up to 2 automatic retries) to generate an in-character explanation while keeping `WorldState` 100% uncorrupted.
+- **Live Verification Inspector & Interactive Architecture Walkthrough:** Judges can inspect every AI proposal, deterministic rule check, `thinking_level` badge, `previous_interaction_id` chain, and step through an interactive 5-stage pipeline walkthrough in real time via the built-in **Verifier** drawer.
 
 ### C. Multimodal Orchestration: 10-Cut Naver Webtoon Generator + 10-Camera 3D Rig + Adaptive Audio
-- **Long-Decode 10-Cut Webtoon Storyboard (`generateFullWebtoonEpisode`):** In a single structured long-decode call, `gemini-4-argon` synthesizes the player's entire verified playthrough log, trust scores, and exact spoken quotes into a **10-cut vertical-scroll Naver Webtoon episode** complete with act headers, camera shot directives, SFX typography, narrator captions, character speech bubbles, and inner monologues.
+- **Long-Decode 10-Cut Webtoon Storyboard (`generateFullWebtoonEpisode`):** In a single structured long-decode call (`thinking_level: 'medium'`, `max_output_tokens: 16384`), `gemini-4-argon` synthesizes the player's entire verified playthrough log, trust scores, and exact spoken quotes into a **10-cut vertical-scroll Naver Webtoon episode** complete with act headers, camera shot directives, SFX typography, narrator captions, character speech bubbles, and inner monologues.
 - **4 Signature Korean Webtoon Art Styles + Live 3D Multi-Camera Captures:** Players can switch between **Naver Romance & Idol**, **Dramatic Action Manhwa**, **Warm Youth & Acoustic Drama**, **Cinematic Backstage Noir**, or **Original Live 3D WebGL Captures** powered by 10 dedicated 3D camera rig presets (`CAMERA_RIG_PRESETS`), with one-click full-episode PNG export.
 - **Adaptive K-POP Soundscape & Voice:** Real-time Web Audio synthesis for RFID scans, 648.55 MHz IEM sync tones, 6-string acoustic guitar strums, and ending concert fanfares, paired with Web Speech character TTS and microphone voice input.
 
@@ -47,6 +48,6 @@ Players step into the VIP dressing room of fictional K-POP girl group **LUMINA**
 
 ## 3. Why Only Gemini 4 Argon Makes FANVERSE Possible
 1. **Unified Context & State-Grounded Reasoning:** Simultaneously holds canonical lore, 14-object 3D spatial state, multi-turn history, relationship trust metrics, and deterministic validator feedback without losing character voice.
-2. **Low-Latency Structured Self-Correction:** Rapidly executes schema-constrained proposal + deterministic verification + retry correction within interactive game loop budgets.
-3. **Long-Decode Multimodal Storyboarding:** Generates a cohesive 10-cut comic script with camera rig bindings (`WIDE_ESTABLISHING` through `FINALE_STAGE_BEAMS`) and bilingual webtoon typography in a single pass.
+2. **Adaptive Thinking & Stateful Self-Correction (`thinking_level` + `previous_interaction_id`):** Combines low-latency 1st-pass proposals (`thinking_level: 'low'`) with deeper multi-turn self-correction (`thinking_level: 'medium'` + `previous_interaction_id`) within interactive game loop budgets.
+3. **Long-Decode Multimodal Storyboarding (`max_output_tokens: 16384`):** Generates a cohesive 10-cut comic script with camera rig bindings (`WIDE_ESTABLISHING` through `FINALE_STAGE_BEAMS`) and bilingual webtoon typography in a single pass.
 4. **High-Craft 3D & Character Pipeline:** Built with Blender Python/MCP (`RIG_<name>` interactive pivot rigs, PBR materials, and rigged 3D characters for Hana and Jiho) exported to `backstage_room.glb` for 60 FPS React Three Fiber rendering and deployed on **Google Cloud Run**.
