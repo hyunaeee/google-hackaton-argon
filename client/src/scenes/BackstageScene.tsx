@@ -40,8 +40,8 @@ export const CAMERA_RIG_PRESETS: Record<
   WIDE_ESTABLISHING: {
     pos: [0.0, 1.68, 5.15],
     target: [0.0, 1.25, -0.85],
-    labelEn: 'Eye-Level Wide',
-    labelKo: '아이레벨 전체 뷰',
+    labelEn: 'Full Backstage',
+    labelKo: '전체 대기실',
   },
   HANA_CLOSEUP: {
     pos: [-0.85, 1.60, 1.35],
@@ -53,13 +53,13 @@ export const CAMERA_RIG_PRESETS: Record<
     pos: [0.55, 1.64, 0.35],
     target: [1.55, 1.48, -1.85],
     labelEn: 'Jiho (Director)',
-    labelKo: '지호 (디렉터)',
+    labelKo: '지호 (감독)',
   },
   COFFEE_TABLE_CLUE: {
     pos: [0.15, 1.52, 1.85],
     target: [1.05, 0.45, 0.15],
     labelEn: 'Cue Sheet Table',
-    labelKo: '큐시트 테이블',
+    labelKo: '진행표 탁자',
   },
   VANITY_CARD_DISCOVERY: {
     pos: [-1.85, 1.52, 0.65],
@@ -77,31 +77,31 @@ export const CAMERA_RIG_PRESETS: Record<
     pos: [2.15, 1.42, -0.15],
     target: [3.62, 1.05, -1.33],
     labelEn: 'Custom Mic',
-    labelKo: '커스텀 마이크',
+    labelKo: '전용 마이크',
   },
   LOUNGE_SOFA_IEM: {
     pos: [0.25, 1.58, 2.35],
     target: [2.25, 0.65, 0.45],
     labelEn: 'Lounge Sofa',
-    labelKo: '라운지 소파',
+    labelKo: '휴식 소파',
   },
   ACOUSTIC_GUITAR_CORNER: {
     pos: [1.25, 1.48, 2.85],
     target: [2.95, 0.68, 1.25],
     labelEn: 'Acoustic Guitar',
-    labelKo: '어쿠스틱 기타',
+    labelKo: '통기타',
   },
   STAGE_DOOR_OPENING: {
     pos: [0.0, 1.64, 0.85],
     target: [0.0, 1.35, -3.35],
-    labelEn: 'Stage Door',
-    labelKo: '무대 출입문',
+    labelEn: 'Main Stage Door',
+    labelKo: '메인 무대 출입문',
   },
   FINALE_STAGE_BEAMS: {
     pos: [0.0, 1.68, 3.85],
     target: [0.0, 1.35, -2.5],
     labelEn: 'Finale View',
-    labelKo: '피날레 뷰',
+    labelKo: '마지막 장면',
   },
 };
 
@@ -117,26 +117,29 @@ export function getNextQuestGuide(
   if (!worldState || worldState.stageDoorOpen || worldState.endingReached !== 'NONE') {
     return null;
   }
+  const isKo = lang === 'ko';
   if (worldState.hanaHasMicrophone || worldState.acousticBackupApproved) {
     return {
       targetId: 'stage_door',
-      stepBadge: lang === 'ko' ? 'FINAL STEP · 무대 출발' : 'FINAL STEP · STAGE READY',
-      instruction:
-        lang === 'ko'
-          ? '반짝이는 중앙 무대 출입문을 클릭해 컴백 쇼케이스를 시작하세요!'
-          : 'Click the glowing Center Stage Door to launch the comeback showcase!',
-      prompt: 'Open the stage door and start the comeback performance!',
+      stepBadge: isKo ? '마지막 단계 · 무대 출발' : 'FINAL STEP · STAGE READY',
+      instruction: isKo
+        ? '반짝이는 중앙 메인 무대 출입문을 눌러 복귀 무대를 시작하세요!'
+        : 'Click the glowing Center Stage Door to launch the comeback showcase!',
+      prompt: isKo
+        ? '메인 무대 출입문을 활짝 열고 복귀 공연을 시작한다!'
+        : 'Open the stage door and start the comeback performance!',
     };
   }
   if (worldState.hasMicrophone && !worldState.hanaHasMicrophone) {
     return {
       targetId: 'npc_hana',
-      stepBadge: lang === 'ko' ? 'STEP 5 · 마이크 전달' : 'STEP 5 · HAND OVER MIC',
-      instruction:
-        lang === 'ko'
-          ? '하나(Hana)에게 회수한 커스텀 스타라이트 마이크를 건네주세요!'
-          : 'Hand the recovered custom Starlight Microphone to Hana!',
-      prompt: 'Give the wireless microphone to Hana and sync her in-ear monitor.',
+      stepBadge: isKo ? '5단계 · 마이크 전달' : 'STEP 5 · HAND OVER MIC',
+      instruction: isKo
+        ? '하나에게 되찾은 전용 별빛 마이크를 건네주세요!'
+        : 'Hand the recovered custom Starlight Microphone to Hana!',
+      prompt: isKo
+        ? '하나에게 전용 무선 마이크를 건네주고 귀걸이 수신기를 동기화한다.'
+        : 'Give the wireless microphone to Hana and sync her in-ear monitor.',
     };
   }
   if (
@@ -146,55 +149,60 @@ export function getNextQuestGuide(
   ) {
     return {
       targetId: 'equipment_locker',
-      stepBadge: lang === 'ko' ? 'STEP 4 · 마이크 회수' : 'STEP 4 · RECOVER MIC',
-      instruction:
-        lang === 'ko'
-          ? '열린 우측 보안 장비함 안에서 커스텀 마이크를 꺼내세요!'
-          : 'Pick up the custom wireless microphone from inside the unlocked locker!',
-      prompt: 'Take the custom wireless microphone from inside the unlocked equipment locker.',
+      stepBadge: isKo ? '4단계 · 마이크 회수' : 'STEP 4 · RECOVER MIC',
+      instruction: isKo
+        ? '열린 우측 보안 장비함 안에서 전용 무선 마이크를 꺼내세요!'
+        : 'Pick up the custom wireless microphone from inside the unlocked locker!',
+      prompt: isKo
+        ? '열린 보안 장비함 안에서 전용 무선 마이크를 꺼낸다.'
+        : 'Take the custom wireless microphone from inside the unlocked equipment locker.',
     };
   }
   if (worldState.hasAccessCard && !worldState.lockerUnlocked) {
     return {
       targetId: 'equipment_locker',
-      stepBadge: lang === 'ko' ? 'STEP 3 · 장비함 잠금 해제' : 'STEP 3 · UNLOCK LOCKER',
-      instruction:
-        lang === 'ko'
-          ? '우측 벽의 보안 장비함에 VIP 카드키를 태그해 문을 여세요!'
-          : 'Scan the VIP Access Card on the right-wall Security Equipment Locker!',
-      prompt: 'Use the VIP Access Card to unlock the security equipment locker.',
+      stepBadge: isKo ? '3단계 · 장비함 잠금 해제' : 'STEP 3 · UNLOCK LOCKER',
+      instruction: isKo
+        ? '우측 벽의 보안 장비함에 특별 스태프 카드키를 접촉해 문을 여세요!'
+        : 'Scan the VIP Access Card on the right-wall Security Equipment Locker!',
+      prompt: isKo
+        ? '특별 스태프 출입 카드키를 사용해 보안 장비함 잠금을 해제한다.'
+        : 'Use the VIP Access Card to unlock the security equipment locker.',
     };
   }
   if (worldState.hanaTalked && !worldState.jihoTalked && !worldState.hasAccessCard) {
     return {
       targetId: 'npc_jiho',
-      stepBadge: lang === 'ko' ? 'STEP 2 · 디렉터 브리핑' : 'STEP 2 · ASK DIRECTOR JIHO',
-      instruction:
-        lang === 'ko'
-          ? '무대 디렉터 지호에게 마이크 보관 위치와 카드키 단서를 물어보세요!'
-          : 'Ask Stage Director Jiho where the microphone and VIP keycard were placed!',
-      prompt: 'Ask Stage Director Jiho where the spare microphone or VIP access card is.',
+      stepBadge: isKo ? '2단계 · 감독 상황 확인' : 'STEP 2 · ASK DIRECTOR JIHO',
+      instruction: isKo
+        ? '무대 감독 지호에게 마이크 보관 위치와 카드키 단서를 물어보세요!'
+        : 'Ask Stage Director Jiho where the microphone and VIP keycard were placed!',
+      prompt: isKo
+        ? '무대 감독 지호에게 예비 마이크나 특별 출입 카드키가 어디 있는지 물어본다.'
+        : 'Ask Stage Director Jiho where the spare microphone or VIP access card is.',
     };
   }
   if (!worldState.hasAccessCard && (worldState.hanaTalked || worldState.jihoTalked)) {
     return {
       targetId: 'access_card',
-      stepBadge: lang === 'ko' ? 'STEP 2 · VIP 카드키 획득' : 'STEP 2 · PICK UP VIP KEYCARD',
-      instruction:
-        lang === 'ko'
-          ? '좌측 할리우드 조명 화장대 위에서 반짝이는 VIP 스태프 카드키를 주우세요!'
-          : 'Pick up the glowing VIP Staff Access Card on the left vanity table!',
-      prompt: 'Inspect the vanity mirror and pick up the VIP Staff Access Card on the vanity table.',
+      stepBadge: isKo ? '2단계 · 특별 카드키 획득' : 'STEP 2 · PICK UP VIP KEYCARD',
+      instruction: isKo
+        ? '좌측 조명 화장대 위에서 반짝이는 특별 스태프 카드키를 주우세요!'
+        : 'Pick up the glowing VIP Staff Access Card on the left vanity table!',
+      prompt: isKo
+        ? '화장대 거울을 살피고 화장대 탁자 위의 특별 스태프 출입 카드키를 줍는다.'
+        : 'Inspect the vanity mirror and pick up the VIP Staff Access Card on the vanity table.',
     };
   }
   return {
     targetId: 'npc_hana',
-    stepBadge: lang === 'ko' ? 'STEP 1 · 상황 파악' : 'STEP 1 · CHECK ON HANA',
-    instruction:
-      lang === 'ko'
-        ? '좌측 화장대 앞에 서 있는 리드 보컬 하나(Hana)를 클릭해 대화를 시작하세요!'
-        : 'Click Lead Vocalist Hana near the left vanity mirror to start!',
-    prompt: 'Talk to Hana and calm her down before the show starts.',
+    stepBadge: isKo ? '1단계 · 상황 파악' : 'STEP 1 · CHECK ON HANA',
+    instruction: isKo
+      ? '좌측 화장대 앞에 서 있는 메인 보컬 하나를 눌러 대화를 시작하세요!'
+      : 'Click Lead Vocalist Hana near the left vanity mirror to start!',
+    prompt: isKo
+      ? '공연 시작 전 하나에게 말을 걸어 진정시킨다.'
+      : 'Talk to Hana and calm her down before the show starts.',
   };
 }
 
