@@ -980,6 +980,43 @@ function BackstageRoomModel({
   );
 }
 
+function RoomLoadingFallback({ lang }: { lang: 'en' | 'ko' }) {
+  return (
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+        <planeGeometry args={[8.4, 6.8]} />
+        <meshStandardMaterial color="#2b2622" roughness={0.65} />
+      </mesh>
+      <Html center position={[0, 1.35, 0]}>
+        <div className="px-4 py-2 rounded-full bg-stone-950/85 border border-amber-300/40 text-amber-200 text-xs font-medium whitespace-nowrap shadow-xl backdrop-blur-md">
+          {lang === 'ko'
+            ? '✨ 3D 백스테이지 대기실 모델을 불러오는 중...'
+            : '✨ Loading 3D Backstage Dressing Room...'}
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+class SceneErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
 export const BackstageScene: React.FC = () => {
   const worldState = useGameStore((s) => s.worldState);
   const lang = useGameStore((s) => s.lang);
@@ -1109,13 +1146,15 @@ export const BackstageScene: React.FC = () => {
           color="#ffe4b5"
         />
 
-        <React.Suspense fallback={null}>
-          <BackstageRoomModel
-            worldState={worldState}
-            controlsRef={controlsRef}
-            tagOpacityMode={tagOpacityMode}
-          />
-        </React.Suspense>
+        <SceneErrorBoundary fallback={<RoomLoadingFallback lang={lang} />}>
+          <React.Suspense fallback={<RoomLoadingFallback lang={lang} />}>
+            <BackstageRoomModel
+              worldState={worldState}
+              controlsRef={controlsRef}
+              tagOpacityMode={tagOpacityMode}
+            />
+          </React.Suspense>
+        </SceneErrorBoundary>
 
         <ContactShadows
           position={[0, 0.005, 0]}

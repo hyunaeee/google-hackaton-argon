@@ -356,15 +356,30 @@ def resolve_tga_textures(meshes, folder_name: str, char_name: str, is_female: bo
 
 
 def try_import_generated_glb(name: str, loc, rz_deg: float, target_height: float):
-    """If `assets/models/generated/<name>.glb` exists (from Higgsfield / Tripo 3D / Rodin), import and normalize it."""
+    """If `assets/models/generated/<name>.glb` exists (from Higgsfield / Tripo H3.1 / Rodin), import and normalize it."""
     glb_path = os.path.join(GENERATED_GLB_DIR, f"{name}.glb")
     if not os.path.exists(glb_path) or os.path.getsize(glb_path) < 1024:
         return None
 
     print(f"[HIGGSFIELD/TRIPO GLB] Loading generated 3D asset for {name}: {glb_path}")
-    before = set(bpy.data.objects)
+    before_objs = set(bpy.data.objects)
+    before_imgs = set(bpy.data.images)
     bpy.ops.import_scene.gltf(filepath=glb_path)
-    imported = [o for o in bpy.data.objects if o not in before]
+    imported = [o for o in bpy.data.objects if o not in before_objs]
+    new_imgs = [img for img in bpy.data.images if img not in before_imgs]
+
+    # Downscale 4K Tripo PBR textures to 1024/2048 so Three.js loads instantaneously
+    for img in new_imgs:
+        try:
+            w, h = img.size
+            max_dim = 2048 if "Color" in img.name else 1024
+            if max(w, h) > max_dim:
+                scale = max_dim / float(max(w, h))
+                img.scale(max(1, int(w * scale)), max(1, int(h * scale)))
+                img.pack()
+        except Exception as e:
+            print(f"[HIGGSFIELD/TRIPO GLB] Image scale note for {img.name}: {e}")
+
     meshes = [o for o in imported if o.type == "MESH"]
     if not meshes:
         for o in imported:
@@ -393,18 +408,37 @@ def try_import_generated_glb(name: str, loc, rz_deg: float, target_height: float
         bpy.ops.object.join()
     obj = bpy.context.view_layer.objects.active
 
+    # Decimate ultra-dense Tripo H3.1 mesh (1.9M polys -> ~50k polys) while preserving UV seams
+    poly_count = len(obj.data.polygons)
+    if poly_count > 60000:
+        ratio = min(1.0, 50000.0 / float(poly_count))
+        dec = obj.modifiers.new(name="TripoDecimate", type="DECIMATE")
+        dec.ratio = ratio
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.modifier_apply(modifier=dec.name)
+        print(f"[HIGGSFIELD/TRIPO GLB] Decimated {name} from {poly_count} -> {len(obj.data.polygons)} polys")
+
     verts = [obj.matrix_world @ v.co for v in obj.data.vertices]
-    min_z = min(v.z for v in verts)
-    max_z = max(v.z for v in verts)
+    xs = [v.x for v in verts]
+    ys = [v.y for v in verts]
+    zs = [v.z for v in verts]
+    min_z, max_z = min(zs), max(zs)
     cur_h = max(0.005, max_z - min_z)
     scale_factor = target_height / cur_h
-    cx = sum(v.x for v in verts) / len(verts)
-    cy = sum(v.y for v in verts) / len(verts)
+    cx = (min(xs) + max(xs)) * 0.5
+    cy = (min(ys) + max(ys)) * 0.5
 
     T1 = Matrix.Translation((-cx, -cy, -min_z))
     S = Matrix.Scale(scale_factor, 4)
-    obj.data.transform(S @ T1)
+    # Tripo H3.1 exports characters facing -X (shoulder span along Y > depth span along X); rotate +90 deg around Z to face -Y
+    span_x = max(xs) - min(xs)
+    span_y = max(ys) - min(ys)
+    R_align = Matrix.Rotation(math.radians(90.0), 4, "Z") if span_y > span_x * 1.15 else Matrix.Identity(4)
+
+    obj.data.transform(R_align @ S @ T1)
     obj.matrix_world = Matrix.Identity(4)
+    for poly in obj.data.polygons:
+        poly.use_smooth = True
 
     obj.name = f"{name}_mesh"
     root_empty = L.node(name, loc=loc, rz=rz_deg)
