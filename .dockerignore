@@ -4,6 +4,6 @@ dist
 .env
 .agents
 blender
-assets/build_backstage_scene.py
+assets
 *.log
 .DS_Store

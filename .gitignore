@@ -11,3 +11,5 @@ blender/*.blend
 blender/*.blend1
 blender/*.png
 .agents/
+assets/models/generated/
+assets/*.png
