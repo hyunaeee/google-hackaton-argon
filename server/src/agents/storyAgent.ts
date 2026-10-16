@@ -209,8 +209,8 @@ function buildStoryDirectorPrompt(
 
   const languageRule =
     lang === 'ko'
-      ? 'LANGUAGE RULE: Write `npcResponse` and `narration` in natural Korean (한국어).'
-      : 'LANGUAGE RULE: Write `npcResponse` and `narration` strictly in 100% English (even if the player types in another language).';
+      ? 'LANGUAGE RULE: Write `npcResponse` and `narration` strictly in 100% Korean (한국어) ONLY. Do NOT include any English words or Latin letters (for example, write 루미나 instead of LUMINA, 특별 출입 카드 instead of VIP card, 인이어 모니터 instead of IEM), except the title FANVERSE.'
+      : 'LANGUAGE RULE: Write `npcResponse` and `narration` strictly in 100% English ONLY (no Korean characters, even if the player types in another language).';
 
   return `You are the Story Director & Character Reasoning Engine for FANVERSE: "${CANONICAL_WORLD_FACTS.episodeTitle}".
 
@@ -280,8 +280,8 @@ function buildCorrectionPrompt(
 ): string {
   const languageRule =
     lang === 'ko'
-      ? 'Write `npcResponse` and `narration` in natural Korean (한국어).'
-      : 'Write `npcResponse` and `narration` strictly in 100% English.';
+      ? 'Write `npcResponse` and `narration` strictly in 100% Korean (한국어) ONLY without any English words (except FANVERSE).'
+      : 'Write `npcResponse` and `narration` strictly in 100% English ONLY.';
 
   return `DETERMINISTIC WORLD VALIDATOR REJECTED YOUR PREVIOUS PROPOSAL (Attempt #${attemptNumber}).
 
@@ -515,11 +515,11 @@ export async function executeStoryTurn(
     speaker: 'JIHO',
     npcResponse:
       lang === 'ko'
-        ? '잠깐만요—지금은 그렇게 할 수 없어요! 먼저 백스테이지 조건을 확인해 주세요. 장비 락커를 열려면 화장대 위의 VIP 스태프 출입 카드가 필요합니다.'
+        ? '잠깐만요—지금은 그렇게 할 수 없어요! 먼저 대기실의 선행 조건을 확인해 주세요. 보안 장비 보관함을 열려면 화장대 위의 특별 스태프 출입 카드가 먼저 필요합니다.'
         : "Hold on—we can't do that right now! Check the backstage preconditions first: the equipment locker needs the VIP Staff Access Card from the vanity table.",
     narration:
       lang === 'ko'
-        ? `유효하지 않은 행동이 차단되었습니다 (${initialValidation.errors[0] || '조건 미충족'}). 월드 상태는 변경되지 않았습니다.`
+        ? '선행 조건이 충족되지 않아 해당 행동이 차단되었습니다. 세계관 상태는 변경되지 않았습니다.'
         : `Blocked invalid action (${initialValidation.errors[0] || 'Precondition not met'}). No world state was mutated.`,
     requestedEnding: 'NONE',
   };
@@ -655,88 +655,88 @@ export function buildDefault10CutEpisode(
   const firstPlayerLine =
     acceptedTurns[0]?.playerInput ||
     (lang === 'ko'
-      ? '하나, 지호님—스타라이트 마이크에 무슨 일이 생긴 건지 알려주세요!'
+      ? '하나, 지호 님—별빛 마이크에 무슨 일이 생긴 건지 알려주세요!'
       : 'Hana, Jiho—tell me what happened to the Starlight Microphone!');
   const midPlayerLine =
     acceptedTurns[Math.floor(acceptedTurns.length / 2)]?.playerInput ||
     (isAcoustic
       ? lang === 'ko'
-        ? '컴백 무대를 라이브 언플러그드 어쿠스틱 앙코르로 편곡해요!'
+        ? '컴백 무대를 라이브 어쿠스틱 앙코르 무대로 편곡해요!'
         : "Let's rearrange the comeback as a live Unplugged Acoustic Encore!"
       : lang === 'ko'
-        ? '화장대 위에서 VIP 스태프 출입 카드를 찾았어요—지금 락커를 열게요!'
+        ? '화장대 위에서 특별 스태프 출입 카드를 찾았어요—지금 바로 보관함을 열게요!'
         : 'I found the VIP Staff Access Card on the vanity desk—unlocking the locker now!');
 
   if (lang === 'ko') {
     return {
       episodeSubtitle: isAcoustic
-        ? 'EP.01 — 쇼타임 5분 전: 언플러그드 하트비트 (완전판 10컷)'
-        : 'EP.01 — 쇼타임 5분 전: 스타라이트 미라클 (완전판 10컷)',
+        ? '제1화 — 개막 5분 전: 어쿠스틱 심장 박동 (완전판 10컷)'
+        : '제1화 — 개막 5분 전: 별빛의 기적 (완전판 10컷)',
       styleId,
       endingType: worldState.endingReached,
-      authorComment: `작가의 말 (Creator's Note): 총 ${worldState.turnCount}번의 선택과 하나 신뢰도 ${worldState.relationships.hanaTrust}%·지호 신뢰도 ${worldState.relationships.jihoTrust}%로 완성된 당신만의 네이버 웹툰 1화 정식 연재본입니다!`,
+      authorComment: `작가의 말: 총 ${worldState.turnCount}번의 선택과 하나 신뢰도 ${worldState.relationships.hanaTrust}%·지호 신뢰도 ${worldState.relationships.jihoTrust}%로 완성된 당신만의 웹툰 제1화 정식 연재본입니다!`,
       cuts: [
         {
           cutNumber: 1,
-          actLabel: 'ACT 1 · OPENING CRISIS',
-          sceneTitle: '05:00 — 정적에 휩싸인 백스테이지',
+          actLabel: '제1막 · 개막 직전의 위기',
+          sceneTitle: '05:00 — 정적에 휩싸인 대기실',
           cameraShotId: 'WIDE_ESTABLISHING',
           quadrantIndex: 0,
           sfxText: '두근—! 두근—!',
-          sfxSub: 'THUMP! THUMP!',
+          sfxSub: '심장 박동 소리',
           narratorCaption:
-            '컴백 쇼케이스 시작 5분 전. 화려한 네온 조명이 흐르는 LUMINA VIP 대기실에 긴박한 사이렌 같은 침묵이 내려앉았다.',
+            '컴백 무대 시작 5분 전. 화려한 네온 조명이 흐르는 루미나 특별 대기실에 긴박한 경보음 같은 침묵이 내려앉았다.',
           speaker: 'NARRATOR',
           dialogue:
-            '스타라이트 아레나 2만 석의 함성이 문밖에서 파도처럼 밀려오는데... 메인 보컬 하나의 손이 비어 있다.',
+            '별빛 공연장 2만 석의 함성이 문밖에서 파도처럼 밀려오는데... 리드 보컬 하나의 두 손이 비어 있다.',
           innerMonologue:
             '‘이대로 무대가 취소될 순 없어. 내가 도울 방법이 분명히 있을 거야.’',
           moodColor: 'violet',
         },
         {
           cutNumber: 2,
-          actLabel: 'ACT 1 · HANA IN DISTRESS',
-          sceneTitle: '사라진 커스텀 스타라이트 마이크',
+          actLabel: '제1막 · 초조한 하나',
+          sceneTitle: '사라진 전용 별빛 마이크',
           cameraShotId: 'HANA_CLOSEUP',
           quadrantIndex: 0,
           sfxText: '파르르...',
-          sfxSub: 'TREMBLE...',
+          sfxSub: '떨리는 두 손',
           narratorCaption:
             '무대 의상을 입은 하나가 초조하게 두 손을 꼭 쥔 채 거울 앞을 서성인다.',
           speaker: 'HANA',
           dialogue:
-            '“어떡하죠...? 제 커스텀 스타라이트 마이크가 감쪽같이 사라졌어요. 그 마이크 없이는 오프닝 고음을 절대 소화할 수 없는데!”',
-          innerMonologue: `플레이어의 첫 마디: "${firstPlayerLine}"`,
+            '“어떡하죠...? 제 전용 별빛 마이크가 감쪽같이 사라졌어요. 그 마이크 없이는 첫 곡 고음을 절대 소화할 수 없는데!”',
+          innerMonologue: `첫 번째 행동: "${firstPlayerLine}"`,
           moodColor: 'magenta',
         },
         {
           cutNumber: 3,
-          actLabel: 'ACT 2 · BACKSTAGE BRIEFING',
-          sceneTitle: '스테이지 매니저 지호의 단서',
+          actLabel: '제2막 · 대기실 긴급 점검',
+          sceneTitle: '무대 감독 지호의 단서',
           cameraShotId: 'JIHO_BRIEFING',
           quadrantIndex: 0,
           sfxText: '치지직—!',
-          sfxSub: 'BZZT—! RADIO CALL',
+          sfxSub: '무전기 수신음',
           narratorCaption:
-            '인이어 헤드셋을 붙잡은 지호가 땀이 맺힌 이마를 짚으며 큐시트를 확인한다.',
+            '수신기를 붙잡은 지호가 땀이 맺힌 이마를 짚으며 진행표를 확인한다.',
           speaker: 'JIHO',
           dialogue:
-            '“방금 음향팀 무전을 받았습니다! 배터리 긴급 점검 때문에 마이크를 보안 장비 락커에 넣어뒀다는데, 마스터 스태프 카드가 보이지 않아요!”',
+            '“방금 음향팀 무전을 받았습니다! 배터리 긴급 점검 때문에 마이크를 보안 장비 보관함에 넣어뒀다는데, 특별 스태프 출입 카드가 보이지 않아요!”',
           innerMonologue:
-            '‘보안 락커를 열려면 VIP 스태프 출입 카드가 필요해... 아니면 전혀 다른 플랜 B를 세워야 한다!’',
+            '‘보안 보관함을 열려면 특별 스태프 출입 카드가 필요해... 아니면 전혀 다른 비상 대안을 세워야 한다!’',
           moodColor: 'cyan',
         },
         {
           cutNumber: 4,
-          actLabel: 'ACT 2 · CLUE TABLE',
-          sceneTitle: '라운지 테이블 위의 배터리 점검 일지',
+          actLabel: '제2막 · 단서가 놓인 탁자',
+          sceneTitle: '유리 탁자 위의 배터리 점검 일지',
           cameraShotId: 'COFFEE_TABLE_CLUE',
           quadrantIndex: 1,
           sfxText: '펄럭—!',
-          sfxSub: 'RUSTLE!',
+          sfxSub: '종이 넘기는 소리',
           narratorCaption: worldState.clueDiscovered
-            ? '커피 테이블 위 음향팀 점검 로그를 확인하자, 마지막 스태프 동선이 할리우드 조명 화장대 쪽으로 이어져 있었다.'
-            : '대기실 중앙 테이블 위에는 급하게 남겨진 음향 점검표와 백스테이지 타임라인이 놓여 있었다.',
+            ? '유리 탁자 위 음향팀 점검 일지를 확인하자, 마지막 스태프 동선이 조명 화장대 쪽으로 이어져 있었다.'
+            : '대기실 중앙 탁자 위에는 급하게 남겨진 음향 점검표와 대기실 진행 시간표가 놓여 있었다.',
           speaker: 'FAN',
           dialogue:
             '“잠깐만요! 여기 장비 점검 기록을 보세요. 마지막으로 스태프가 머문 곳은 바로 저 화장대 쪽이에요!”',
@@ -745,72 +745,72 @@ export function buildDefault10CutEpisode(
         },
         {
           cutNumber: 5,
-          actLabel: 'ACT 2 · VANITY MIRROR SEARCH',
-          sceneTitle: '할리우드 벌브 미러의 반사광',
+          actLabel: '제2막 · 화장대 거울 수색',
+          sceneTitle: '조명 거울 아래의 반사광',
           cameraShotId: 'VANITY_CARD_DISCOVERY',
           quadrantIndex: 1,
           sfxText: '반짝—✦',
-          sfxSub: 'GLINT—✦',
+          sfxSub: '홀로그램 반사광',
           narratorCaption:
-            '따뜻한 웜화이트 벌브 조명이 켜진 화장대 거울 아래, 아크릴 오거나이저 틈새로 홀로그램 빛이 반짝인다.',
+            '따뜻한 전구 조명이 켜진 화장대 거울 아래, 정리함 틈새로 홀로그램 빛이 반짝인다.',
           speaker: 'HANA',
           dialogue:
             worldState.hasAccessCard || worldState.cardDiscovered
-              ? '“앗, 저기 향수병 옆에 반짝이는 거... 음향팀 마스터 VIP 스태프 카드 맞죠?!”'
+              ? '“앗, 저기 향수병 옆에 반짝이는 거... 음향팀의 특별 스태프 출입 카드 맞죠?!”'
               : '“화장대 구석에 홀로그램 카드가 숨겨져 있었군요! 정말 눈썰미가 대단해요!”',
-          innerMonologue: '‘찾았다! [VIP Staff Access Card] 획득!’',
+          innerMonologue: '‘찾았다! [특별 스태프 출입 카드] 획득!’',
           moodColor: 'magenta',
         },
         {
           cutNumber: 6,
-          actLabel: isAcoustic ? 'ACT 3 · ACOUSTIC PIVOT' : 'ACT 3 · LOCKER BREACH',
+          actLabel: isAcoustic ? '제3막 · 어쿠스틱 전환' : '제3막 · 보안 보관함 개방',
           sceneTitle: isAcoustic
-            ? '과감한 결단: 언플러그드 어쿠스틱 편곡'
-            : 'RFID 보안 락커 해제 순간',
+            ? '과감한 결단: 어쿠스틱 무대 편곡'
+            : '보안 장비 보관함 잠금 해제 순간',
           cameraShotId: isAcoustic ? 'ACOUSTIC_GUITAR_CORNER' : 'LOCKER_RFID_SCAN',
           quadrantIndex: isAcoustic ? 1 : 2,
           sfxText: isAcoustic ? '쩌렁—♪' : '삐빅— 철컥!',
-          sfxSub: isAcoustic ? 'STRUM—♪' : 'BEEP— CLICK!',
+          sfxSub: isAcoustic ? '깊은 현의 울림' : '보안 잠금 해제음',
           narratorCaption: isAcoustic
-            ? '잠긴 락커 대신 대기실 구석의 어쿠스틱 기타에 시선이 멈췄다. 위기를 전설적인 라이브 무대로 바꿀 순간이다.'
-            : 'RFID 리더기에 VIP 스태프 카드를 태그하자, 붉은 경고등이 선명한 에메랄드빛 녹색으로 바뀌며 육중한 철문이 열렸다.',
+            ? '잠긴 보관함 대신 대기실 구석의 통기타에 시선이 멈췄다. 위기를 전설적인 생음 무대로 바꿀 순간이다.'
+            : '보안 판독기에 특별 스태프 출입 카드를 접촉하자, 붉은 경고등이 선명한 녹색으로 바뀌며 육중한 철문이 열렸다.',
           speaker: 'FAN',
           dialogue: `“${midPlayerLine}”`,
           innerMonologue: isAcoustic
-            ? '‘화려한 MR 대신 하나의 진짜 목소리를 들려주자!’'
-            : '‘열렸다! 락커 안쪽 폼 크래들에 마이크가 빛나고 있어!’',
+            ? '‘화려한 반주 트랙 대신 하나의 진짜 목소리를 들려주자!’'
+            : '‘열렸다! 보관함 안쪽 완충 거치대에 마이크가 빛나고 있어!’',
           moodColor: isAcoustic ? 'gold' : 'emerald',
         },
         {
           cutNumber: 7,
-          actLabel: 'ACT 3 · TREASURE RECOVERED',
+          actLabel: '제3막 · 되찾은 보물',
           sceneTitle: isAcoustic
-            ? '6현의 울림, 완벽한 어쿠스틱 튜닝'
-            : '진주빛 스타라이트 마이크의 귀환',
+            ? '여섯 줄의 울림, 완벽한 통기타 조율'
+            : '진주빛 별빛 마이크의 귀환',
           cameraShotId: isAcoustic ? 'ACOUSTIC_GUITAR_CORNER' : 'MICROPHONE_REVEAL',
           quadrantIndex: 2,
           sfxText: isAcoustic ? '띠링—♬' : '화아아—✦',
-          sfxSub: isAcoustic ? 'HARMONIC—♬' : 'SHIMMER—✦',
+          sfxSub: isAcoustic ? '따뜻한 공명' : '별빛의 반짝임',
           narratorCaption: isAcoustic
-            ? '섬세하게 조율된 어쿠스틱 기타 줄이 따뜻한 골드빛 공명을 일으키며 대기실을 감싼다.'
-            : '펄 라일락 바디와 로즈골드 링이 빛나는 LUMINA 커스텀 스타라이트 마이크를 손에 쥐었다.',
+            ? '섬세하게 조율된 통기타 줄이 따뜻한 황금빛 공명을 일으키며 대기실을 감싼다.'
+            : '진주빛 연보라색 몸체와 장미빛 금색 고리가 빛나는 루미나 전용 별빛 마이크를 손에 쥐었다.',
           speaker: 'JIHO',
           dialogue: isAcoustic
-            ? '“기타 튜닝 완벽합니다! 무대 위 핀스폿 조명과 어쿠스틱 픽업 라인까지 즉시 연결 완료했습니다!”'
-            : '“배터리 잔량 100%, 주파수 간섭 제로! 지금 바로 하나에게 전달해 주세요!”',
+            ? '“기타 조율 완벽합니다! 무대 위 집중 조명과 어쿠스틱 음향 회선까지 즉시 연결 완료했습니다!”'
+            : '“배터리 잔량 100%, 주파수 간섭 없음! 지금 바로 하나에게 전달해 주세요!”',
           innerMonologue: '‘이제 마지막 무대 준비만 남았다!’',
           moodColor: isAcoustic ? 'gold' : 'violet',
         },
         {
           cutNumber: 8,
-          actLabel: 'ACT 4 · SOUNDCHECK & HANDOFF',
-          sceneTitle: '인이어 모니터 싱크 & 진심의 교감',
+          actLabel: '제4막 · 음향 점검과 전달',
+          sceneTitle: '인이어 모니터 동기화 & 진심의 교감',
           cameraShotId: 'LOUNGE_SOFA_IEM',
           quadrantIndex: 2,
-          sfxText: '징— 온에어!',
-          sfxSub: 'SYNC COMPLETE!',
+          sfxText: '징— 생방송 준비 완료!',
+          sfxSub: '주파수 동기화 완료',
           narratorCaption:
-            '벨벳 소파 위의 무선 인이어 모니터(IEM) 팩까지 완벽히 동기화되자, 하나의 눈빛에 흔들림 없는 확신이 차오른다.',
+            '벨벳 소파 위의 무선 인이어 모니터 수신기까지 완벽히 동기화되자, 하나의 눈빛에 흔들림 없는 확신이 차오른다.',
           speaker: 'HANA',
           dialogue: isAcoustic
             ? '“당신이 용기를 주지 않았다면 전 무대 위에서 얼어붙었을 거예요. 우리만의 특별한 어쿠스틱 무대, 함께 만들어요!”'
@@ -820,38 +820,38 @@ export function buildDefault10CutEpisode(
         },
         {
           cutNumber: 9,
-          actLabel: 'ACT 5 · STAGE ENTRANCE',
-          sceneTitle: '01:00 — 열리는 STAGE / ON AIR 도어',
+          actLabel: '제5막 · 무대 입장',
+          sceneTitle: '01:00 — 활짝 열리는 무대 출입문',
           cameraShotId: 'STAGE_DOOR_OPENING',
           quadrantIndex: 3,
           sfxText: '쿠구구궁—!!',
-          sfxSub: 'ROOOAAAR—!!',
+          sfxSub: '2만 관객의 함성',
           narratorCaption:
-            '네온 사인이 빛나는 방음 무대 문이 활짝 열리고, 그 너머로 보랏빛과 시안빛 레이저 빔이 폭포처럼 쏟아져 들어온다.',
+            '생방송 표시등이 빛나는 방음 무대 문이 활짝 열리고, 그 너머로 보랏빛과 청록빛 조명 광선이 폭포처럼 쏟아져 들어온다.',
           speaker: 'JIHO',
           dialogue:
-            '“스탠바이 완료! 큐 사인 떨어집니다— LUMINA, 지금 무대로 입장합니다!!”',
-          innerMonologue: '‘심장이 터질 것 같아. 드디어 쇼타임이다!’',
+            '“대기 완료! 무대 진입 신호 떨어집니다— 루미나, 지금 무대로 입장합니다!!”',
+          innerMonologue: '‘심장이 터질 것 같아. 드디어 개막 순간이다!’',
           moodColor: 'cyan',
         },
         {
           cutNumber: 10,
-          actLabel: 'ACT 5 · GRAND FINALE',
+          actLabel: '제5막 · 대단원의 피날레',
           sceneTitle: isAcoustic
-            ? 'ENDING B — Unplugged Encore (전설이 된 어쿠스틱 앙코르)'
-            : 'ENDING A — Showtime Saved (별빛으로 물든 컴백 피날레)',
+            ? '결말 나 — 전설이 된 어쿠스틱 앙코르'
+            : '결말 가 — 별빛으로 물든 컴백 피날레',
           cameraShotId: 'FINALE_STAGE_BEAMS',
           quadrantIndex: 3,
           sfxText: '와아아아아—!! ✦',
-          sfxSub: 'CHEERS & CONFETTI!!',
+          sfxSub: '별빛 피날레 환호',
           narratorCaption: isAcoustic
-            ? '따뜻한 황금빛 스포트라이트 아래, 어쿠스틱 기타 선율과 하나의 투명한 보컬이 아레나 전체를 울린다.'
-            : '스타라이트 마이크를 높이 든 하나의 하이노트가 터져 나오자, 보랏빛 컨페티가 밤하늘의 은하수처럼 쏟아진다.',
+            ? '따뜻한 황금빛 집중 조명 아래, 통기타 선율과 하나의 투명한 목소리가 공연장 전체를 울린다.'
+            : '별빛 마이크를 높이 든 하나의 고음이 터져 나오자, 보랏빛 꽃가루가 밤하늘의 은하수처럼 쏟아진다.',
           speaker: 'HANA',
           dialogue: isAcoustic
             ? '“오늘 밤 이 어쿠스틱 기적을 만들어 준 단 한 사람에게, 이 노래를 바칩니다!”'
-            : '“기다려 주셔서 감사합니다! 지금까지 LUMINA였습니다— 오늘 밤, 우리의 우주가 시작됩니다!”',
-          innerMonologue: '— FANVERSE EP.01 [5분 전의 기적] END —',
+            : '“기다려 주셔서 감사합니다! 지금까지 루미나였습니다— 오늘 밤, 우리의 우주가 시작됩니다!”',
+          innerMonologue: '— FANVERSE 제1화 [5분 전의 기적] 완결 —',
           moodColor: isAcoustic ? 'gold' : 'violet',
         },
       ],
@@ -1073,13 +1073,13 @@ export async function generateFullWebtoonEpisode(
 
   const languageDirective =
     lang === 'ko'
-      ? 'Write all episodeSubtitle, authorComment, sceneTitle, sfxText, narratorCaption, dialogue, and innerMonologue in natural, expressive Korean (한국어) suitable for Naver Webtoon.'
-      : 'Write all episodeSubtitle, authorComment, sceneTitle, sfxText, sfxSub, narratorCaption, dialogue, and innerMonologue strictly in 100% English (no Korean characters) for international Webtoon serialization.';
+      ? 'Write all episodeSubtitle, authorComment, actLabel, sceneTitle, sfxText, sfxSub, narratorCaption, dialogue, and innerMonologue strictly in 100% Korean (한국어) ONLY without any English words or Latin characters (except FANVERSE).'
+      : 'Write all episodeSubtitle, authorComment, actLabel, sceneTitle, sfxText, sfxSub, narratorCaption, dialogue, and innerMonologue strictly in 100% English ONLY (no Korean characters).';
 
   const prompt = `You are a flagship Webtoon Storyboard Writer & Director creating a full 10-cut vertical scroll webtoon episode (EP.01) for FANVERSE: "${CANONICAL_WORLD_FACTS.episodeTitle}".
 
 SELECTED ART STYLE: ${styleId}
-TARGET LANGUAGE: ${lang === 'ko' ? 'Korean (한국어)' : '100% English (EN)'}
+TARGET LANGUAGE: ${lang === 'ko' ? '100% Korean Only (한국어 전용)' : '100% English Only (EN)'}
 PLAYER'S FINAL WORLD STATE:
 ${JSON.stringify(
   {

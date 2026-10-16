@@ -32,62 +32,86 @@ export const CAMERA_RIG_PRESETS: Record<
     pos: [number, number, number];
     target: [number, number, number];
     label: string;
+    labelEn: string;
+    labelKo: string;
   }
 > = {
   WIDE_ESTABLISHING: {
     pos: [0.15, 2.35, 3.85],
     target: [-0.15, 1.15, -0.85],
-    label: '전체 대기실',
+    label: 'Wide Room',
+    labelEn: 'Wide Room',
+    labelKo: '전체 대기실',
   },
   HANA_CLOSEUP: {
     pos: [-0.75, 1.55, 0.45],
     target: [-1.75, 1.38, -0.65],
-    label: '하나 (보컬)',
+    label: 'Hana (Vocal)',
+    labelEn: 'Hana (Vocal)',
+    labelKo: '하나 (보컬)',
   },
   JIHO_BRIEFING: {
     pos: [0.55, 1.58, -0.65],
     target: [1.35, 1.45, -2.05],
-    label: '지호 (디렉터)',
+    label: 'Jiho (Director)',
+    labelEn: 'Jiho (Director)',
+    labelKo: '지호 (디렉터)',
   },
   COFFEE_TABLE_CLUE: {
     pos: [0.25, 1.45, 1.45],
     target: [0.25, 0.45, 0.0],
-    label: '큐시트 메모',
+    label: 'Cue Sheet Note',
+    labelEn: 'Cue Sheet Note',
+    labelKo: '큐시트 메모',
   },
   VANITY_CARD_DISCOVERY: {
     pos: [-1.45, 1.42, -0.15],
     target: [-2.75, 0.95, -0.55],
-    label: '화장대 & 카드키',
+    label: 'Vanity & Keycard',
+    labelEn: 'Vanity & Keycard',
+    labelKo: '화장대 & 카드키',
   },
   LOCKER_RFID_SCAN: {
     pos: [1.25, 1.48, -0.45],
     target: [2.65, 1.15, -1.65],
-    label: '보안 장비함',
+    label: 'Security Locker',
+    labelEn: 'Security Locker',
+    labelKo: '보안 장비함',
   },
   MICROPHONE_REVEAL: {
     pos: [1.65, 1.35, -0.85],
     target: [2.62, 1.08, -1.58],
-    label: '커스텀 마이크',
+    label: 'Custom Mic',
+    labelEn: 'Custom Mic',
+    labelKo: '커스텀 마이크',
   },
   LOUNGE_SOFA_IEM: {
     pos: [-0.45, 1.45, 2.25],
     target: [0.25, 0.65, 0.95],
-    label: '라운지 소파',
+    label: 'Lounge Sofa',
+    labelEn: 'Lounge Sofa',
+    labelKo: '라운지 소파',
   },
   ACOUSTIC_GUITAR_CORNER: {
     pos: [0.85, 1.25, 1.85],
     target: [1.85, 0.68, 0.85],
-    label: '어쿠스틱 기타',
+    label: 'Acoustic Guitar',
+    labelEn: 'Acoustic Guitar',
+    labelKo: '어쿠스틱 기타',
   },
   STAGE_DOOR_OPENING: {
     pos: [0.0, 1.55, -0.65],
     target: [0.0, 1.35, -3.35],
-    label: '무대 출입문',
+    label: 'Stage Door',
+    labelEn: 'Stage Door',
+    labelKo: '무대 출입문',
   },
   FINALE_STAGE_BEAMS: {
     pos: [-0.25, 1.85, 2.65],
     target: [0.0, 1.35, -2.5],
-    label: '피날레 뷰',
+    label: 'Finale View',
+    labelEn: 'Finale View',
+    labelKo: '피날레 뷰',
   },
 };
 
@@ -373,14 +397,21 @@ function BackstageRoomModel({
   };
 
   // Clean, non-overlapping interactive hotspots placed slightly above/beside targets so faces are never covered
+  const lang = useGameStore((s) => s.lang);
+  const isKo = lang === 'ko';
+
   const hotspots = useMemo<HotspotMeta[]>(() => {
     const list: HotspotMeta[] = [
       {
         id: 'npc_hana',
-        label: '하나 (리드 보컬)',
+        label: isKo ? '하나 (리드 보컬)' : 'Hana (Lead Vocal)',
         actionHint: worldState.hasMicrophone
-          ? '마이크 건네주기'
-          : '대화하기',
+          ? isKo
+            ? '마이크 건네주기'
+            : 'Hand Mic to Hana'
+          : isKo
+            ? '대화하기'
+            : 'Talk to Hana',
         position: [-1.75, 1.92, -0.65],
         quickActionPrompt: worldState.hasMicrophone
           ? 'Hand the custom starlight microphone over to Hana so she can perform!'
@@ -389,10 +420,14 @@ function BackstageRoomModel({
       },
       {
         id: 'npc_jiho',
-        label: '지호 (무대 디렉터)',
+        label: isKo ? '지호 (무대 디렉터)' : 'Jiho (Stage Director)',
         actionHint: !worldState.jihoTalked
-          ? '장비함 위치 묻기'
-          : '무대 준비 확인',
+          ? isKo
+            ? '장비함 위치 묻기'
+            : 'Ask About Locker'
+          : isKo
+            ? '무대 준비 확인'
+            : 'Propose Unplugged',
         position: [1.35, 1.98, -2.05],
         quickActionPrompt: !worldState.jihoTalked
           ? 'Ask Jiho where the custom microphone was moved and how to unlock the equipment locker.'
@@ -401,8 +436,20 @@ function BackstageRoomModel({
       },
       {
         id: 'access_card',
-        label: worldState.hasAccessCard ? '화장대 테이블' : 'VIP 스태프 카드키',
-        actionHint: !worldState.hasAccessCard ? '카드키 줍기' : '화장대 조사',
+        label: worldState.hasAccessCard
+          ? isKo
+            ? '화장대 테이블'
+            : 'Vanity Table'
+          : isKo
+            ? 'VIP 스태프 카드키'
+            : 'VIP Staff Keycard',
+        actionHint: !worldState.hasAccessCard
+          ? isKo
+            ? '카드키 줍기'
+            : 'Pick Up Keycard'
+          : isKo
+            ? '화장대 조사'
+            : 'Inspect Vanity',
         position: [-2.72, 1.32, -0.32],
         quickActionPrompt: !worldState.hasAccessCard
           ? 'Inspect the vanity table and pick up the holographic VIP Staff Access Card.'
@@ -412,15 +459,27 @@ function BackstageRoomModel({
       {
         id: 'equipment_locker',
         label: worldState.lockerUnlocked
-          ? '보안 장비함 (열림)'
-          : '보안 장비함 (잠김)',
+          ? isKo
+            ? '보안 장비함 (열림)'
+            : 'Security Locker (Open)'
+          : isKo
+            ? '보안 장비함 (잠김)'
+            : 'Security Locker (Locked)',
         actionHint: !worldState.lockerUnlocked
           ? worldState.hasAccessCard
-            ? '카드키로 열기'
-            : '잠금장치 확인'
+            ? isKo
+              ? '카드키로 열기'
+              : 'Unlock with Keycard'
+            : isKo
+              ? '잠금장치 확인'
+              : 'Check RFID Lock'
           : !worldState.hasMicrophone && !worldState.hanaHasMicrophone
-            ? '커스텀 마이크 꺼내기'
-            : '장비함 조사',
+            ? isKo
+              ? '커스텀 마이크 꺼내기'
+              : 'Take Custom Mic'
+            : isKo
+              ? '장비함 조사'
+              : 'Inspect Locker',
         position: [2.65, 1.95, -1.65],
         quickActionPrompt: !worldState.lockerUnlocked
           ? worldState.hasAccessCard
@@ -435,10 +494,14 @@ function BackstageRoomModel({
       },
       {
         id: 'acoustic_guitar',
-        label: '어쿠스틱 기타',
+        label: isKo ? '어쿠스틱 기타' : 'Acoustic Guitar',
         actionHint: !worldState.guitarTuned
-          ? '기타 조율하기'
-          : '언플러그드 무대 제안',
+          ? isKo
+            ? '기타 조율하기'
+            : 'Tune Guitar'
+          : isKo
+            ? '언플러그드 무대 제안'
+            : 'Propose Unplugged',
         position: [1.85, 1.25, 0.85],
         quickActionPrompt: !worldState.guitarTuned
           ? 'Tune the backstage acoustic guitar on its stand and check its pickup resonance.'
@@ -447,11 +510,15 @@ function BackstageRoomModel({
       },
       {
         id: 'stage_door',
-        label: '메인 무대 출입문',
+        label: isKo ? '메인 무대 출입문' : 'Main Stage Door',
         actionHint:
           worldState.hanaHasMicrophone || worldState.acousticBackupApproved
-            ? '무대 문 열기 (피날레)'
-            : '출입문 상태 확인',
+            ? isKo
+              ? '무대 문 열기 (피날레)'
+              : 'Open Stage Door (Finale)'
+            : isKo
+              ? '출입문 상태 확인'
+              : 'Check Stage Door',
         position: [0.0, 2.38, -3.25],
         quickActionPrompt: worldState.hanaHasMicrophone
           ? 'Open the stage entrance door and launch LUMINA’s comeback performance with Hana’s recovered microphone!'
@@ -462,7 +529,7 @@ function BackstageRoomModel({
       },
     ];
     return list;
-  }, [worldState]);
+  }, [worldState, isKo]);
 
   return (
     <group>
@@ -539,7 +606,12 @@ function BackstageRoomModel({
                   </span>
                   {(isSelected || isHovered) && (
                     <span className="text-[10px] font-semibold text-amber-200 pl-1 border-l border-white/20 whitespace-nowrap">
-                      {submittingAction ? '진행 중...' : h.actionHint} →
+                      {submittingAction
+                        ? isKo
+                          ? '진행 중...'
+                          : 'Acting...'
+                        : h.actionHint}{' '}
+                      →
                     </span>
                   )}
                 </div>
@@ -553,6 +625,8 @@ function BackstageRoomModel({
 
 export const BackstageScene: React.FC = () => {
   const worldState = useGameStore((s) => s.worldState);
+  const lang = useGameStore((s) => s.lang);
+  const isKo = lang === 'ko';
   const [activeCameraPreset, setActiveCameraPreset] =
     useState<CameraShotId | null>('WIDE_ESTABLISHING');
   const [tagOpacityMode, setTagOpacityMode] = useState<
@@ -563,7 +637,9 @@ export const BackstageScene: React.FC = () => {
   if (!worldState) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-[#181614] text-stone-300 text-sm">
-        백스테이지 3D 대기실을 불러오는 중입니다...
+        {isKo
+          ? '백스테이지 3D 대기실을 불러오는 중입니다...'
+          : 'Loading 3D Backstage Green Room...'}
       </div>
     );
   }
@@ -596,7 +672,7 @@ export const BackstageScene: React.FC = () => {
                     : 'text-stone-300 hover:text-white hover:bg-white/10'
                 }`}
               >
-                {preset.label}
+                {isKo ? preset.labelKo : preset.labelEn}
               </button>
             );
           })}
@@ -609,11 +685,19 @@ export const BackstageScene: React.FC = () => {
             )
           }
           className="pointer-events-auto px-3 py-1.5 rounded-full bg-stone-950/55 backdrop-blur-md border border-white/10 text-[11px] text-stone-300 hover:text-white transition cursor-pointer shrink-0"
-          title="말풍선 이름표 반투명 표시 / 숨기기"
+          title={
+            isKo
+              ? '말풍선 이름표 반투명 표시 / 숨기기'
+              : 'Toggle 3D translucent nameplates'
+          }
         >
           {tagOpacityMode === 'translucent'
-            ? '이름표: 반투명 투과'
-            : '이름표: 숨김'}
+            ? isKo
+              ? '이름표: 반투명 투과'
+              : 'Tags: See-Through'
+            : isKo
+              ? '이름표: 숨김'
+              : 'Tags: Hidden'}
         </button>
       </div>
 
