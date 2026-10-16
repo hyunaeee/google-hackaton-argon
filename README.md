@@ -14,10 +14,10 @@
 Global K-POP fans, K-drama viewers, and webtoon readers want to step inside their favorite fictional universes. Yet current formats trap users between **static branching menus** (no freedom) and **unbounded LLM chatbots** (which hallucinate, ignore object preconditions, and lack a physical 3D world).
 
 **FANVERSE** solves this by combining:
-1. **A 5-Act Interactive 3D K-POP Backstage World** (`backstage_room.glb` rendered in React Three Fiber with 10 cinematic camera presets and interactive `RIG_<name>` pivots).
-2. **Gemini 4 Argon Story Director (`gemini-4-argon`)** using the `@google/genai` Interactions API (`ai.interactions.create`) with strict JSON Schema output, adaptive `thinking_level` (`low` → `medium`), and `previous_interaction_id` chaining.
-3. **A Deterministic Verification & 2-Step Self-Correction Loop** (`validateAction()`) that blocks illegal state mutations and feeds exact rule violations back to `gemini-4-argon` so characters respond in-world without corrupting canonical state.
-4. **A Long-Decode 10-Cut Naver Webtoon Generator** (`thinking_level: 'medium'`, `max_output_tokens: 16384`) that transforms the player's verified playthrough and exact quotes into a downloadable vertical-scroll comic strip across **4 Korean Webtoon art styles** + **10-angle live 3D camera captures**.
+1. **A 5-Act Interactive 3D K-POP Backstage World** (`backstage_room.glb` built with rigged Rocketbox characters, animated Blender shape keys, see-through wall occlusion, and 10 cinematic camera presets in React Three Fiber).
+2. **Gemini 4 Argon Story Director (`gemini-4-argon`)** using the `@google/genai` Interactions API (`ai.interactions.create`) with strict JSON Schema output, adaptive `thinking_level` (`low` → `medium`), per-tab `x-session-id` session isolation, and `previous_interaction_id` chaining.
+3. **A Deterministic Verification & 2-Step Self-Correction Loop** (`validateAction()`) with a one-click **`Test Rule Guard`** button that blocks illegal state mutations and feeds exact rule violations back to `gemini-4-argon` so characters respond in-world without corrupting canonical state.
+4. **A Long-Decode 2K 10-Style Naver Webtoon Studio** (`thinking_level: 'medium'`, `max_output_tokens: 16384`) with **English / Korean (`🇺🇸 EN` / `🇰🇷 한국어`) episode language selection** (100% English default) that transforms the player's verified playthrough into a downloadable **2K (`2048px` wide) vertical-scroll comic strip** across **10 Korean Webtoon visual presets** and **8 distinct NanoBanana Pro (`gemini-3-pro-image-preview`) comic cuts**.
 
 ---
 

@@ -39,8 +39,8 @@ export const CAMERA_RIG_PRESETS: Record<
   WIDE_ESTABLISHING: {
     pos: [0.15, 2.35, 3.85],
     target: [-0.15, 1.15, -0.85],
-    label: 'Wide Room',
-    labelEn: 'Wide Room',
+    label: 'Full Backstage',
+    labelEn: 'Full Backstage',
     labelKo: '전체 대기실',
   },
   HANA_CLOSEUP: {
@@ -55,14 +55,14 @@ export const CAMERA_RIG_PRESETS: Record<
     target: [1.35, 1.45, -2.05],
     label: 'Jiho (Director)',
     labelEn: 'Jiho (Director)',
-    labelKo: '지호 (디렉터)',
+    labelKo: '지호 (감독)',
   },
   COFFEE_TABLE_CLUE: {
     pos: [0.25, 1.45, 1.45],
     target: [0.25, 0.45, 0.0],
     label: 'Cue Sheet Note',
     labelEn: 'Cue Sheet Note',
-    labelKo: '큐시트 메모',
+    labelKo: '진행표 메모',
   },
   VANITY_CARD_DISCOVERY: {
     pos: [-1.45, 1.42, -0.15],
@@ -83,35 +83,35 @@ export const CAMERA_RIG_PRESETS: Record<
     target: [2.62, 1.08, -1.58],
     label: 'Custom Mic',
     labelEn: 'Custom Mic',
-    labelKo: '커스텀 마이크',
+    labelKo: '전용 마이크',
   },
   LOUNGE_SOFA_IEM: {
     pos: [-0.45, 1.45, 2.25],
     target: [0.25, 0.65, 0.95],
     label: 'Lounge Sofa',
     labelEn: 'Lounge Sofa',
-    labelKo: '라운지 소파',
+    labelKo: '휴식 소파',
   },
   ACOUSTIC_GUITAR_CORNER: {
     pos: [0.85, 1.25, 1.85],
     target: [1.85, 0.68, 0.85],
     label: 'Acoustic Guitar',
     labelEn: 'Acoustic Guitar',
-    labelKo: '어쿠스틱 기타',
+    labelKo: '통기타',
   },
   STAGE_DOOR_OPENING: {
     pos: [0.0, 1.55, -0.65],
     target: [0.0, 1.35, -3.35],
-    label: 'Stage Door',
-    labelEn: 'Stage Door',
-    labelKo: '무대 출입문',
+    label: 'Main Stage Door',
+    labelEn: 'Main Stage Door',
+    labelKo: '메인 무대 출입문',
   },
   FINALE_STAGE_BEAMS: {
     pos: [-0.25, 1.85, 2.65],
     target: [0.0, 1.35, -2.5],
     label: 'Finale View',
     labelEn: 'Finale View',
-    labelKo: '피날레 뷰',
+    labelKo: '마지막 장면',
   },
 };
 
@@ -195,6 +195,8 @@ function BackstageRoomModel({
   const setHoveredTarget = useGameStore((s) => s.setHoveredTarget);
   const submitPlayerAction = useGameStore((s) => s.submitPlayerAction);
   const submittingAction = useGameStore((s) => s.submittingAction);
+  const lang = useGameStore((s) => s.lang);
+  const isKo = lang === 'ko';
 
   const clonedScene = useMemo(() => {
     const root = scene.clone(true);
