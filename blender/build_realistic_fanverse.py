@@ -433,7 +433,7 @@ def try_import_generated_glb(name: str, loc, rz_deg: float, target_height: float
     # Tripo H3.1 exports characters facing -X (shoulder span along Y > depth span along X); rotate +90 deg around Z to face -Y
     span_x = max(xs) - min(xs)
     span_y = max(ys) - min(ys)
-    R_align = Matrix.Rotation(math.radians(90.0), 4, "Z") if span_y > span_x * 1.15 else Matrix.Identity(4)
+    R_align = Matrix.Rotation(math.radians(-90.0), 4, "Z") if span_y > span_x * 1.15 else Matrix.Identity(4)
 
     obj.data.transform(R_align @ S @ T1)
     obj.matrix_world = Matrix.Identity(4)
@@ -960,7 +960,7 @@ def build_scene():
             export_texcoords=True,
             export_normals=True,
             export_materials="EXPORT",
-            export_image_format="WEBP",
+            export_image_format="JPEG",
             export_image_quality=86,
             export_cameras=False,
             export_lights=False,
@@ -977,6 +977,27 @@ def build_scene():
             export_cameras=False,
             export_lights=False,
         )
+    # Ensure top-level texture["source"] is present alongside EXT_texture_webp for three-stdlib GLTFLoader
+    import struct, json
+    with open(GLB_OUT, "rb") as _f:
+        _glb_data = _f.read()
+    _magic, _ver, _ = struct.unpack_from("<III", _glb_data, 0)
+    _jlen, _jtype = struct.unpack_from("<II", _glb_data, 12)
+    _gltf = json.loads(_glb_data[20:20 + _jlen].decode("utf-8"))
+    for _tex in _gltf.get("textures", []):
+        _ext = _tex.get("extensions", {}).get("EXT_texture_webp")
+        if _ext and "source" in _ext and "source" not in _tex:
+            _tex["source"] = _ext["source"]
+    if "extensionsRequired" in _gltf and "EXT_texture_webp" in _gltf["extensionsRequired"]:
+        _gltf["extensionsRequired"] = [e for e in _gltf["extensionsRequired"] if e != "EXT_texture_webp"]
+        if not _gltf["extensionsRequired"]:
+            del _gltf["extensionsRequired"]
+    _new_jbytes = json.dumps(_gltf, separators=(",", ":")).encode("utf-8")
+    _new_jbytes += b" " * ((4 - (len(_new_jbytes) % 4)) % 4)
+    _rest = _glb_data[20 + _jlen:]
+    _out = struct.pack("<III", _magic, _ver, 20 + len(_new_jbytes) + len(_rest)) + struct.pack("<II", len(_new_jbytes), _jtype) + _new_jbytes + _rest
+    with open(GLB_OUT, "wb") as _f:
+        _f.write(_out)
     print(f"[SUCCESS] Exported GLB -> {GLB_OUT} ({os.path.getsize(GLB_OUT) / (1024*1024):.2f} MB)")
 
     # Setup warm studio lighting & Human Eye-Level camera for preview verification

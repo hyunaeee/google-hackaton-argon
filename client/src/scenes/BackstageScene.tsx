@@ -374,7 +374,7 @@ function BackstageRoomModel({
   controlsRef: React.RefObject<any>;
   tagOpacityMode: 'translucent' | 'hidden';
 }) {
-  const { scene } = useGLTF('/models/backstage_room.glb?v=restore');
+  const { scene } = useGLTF('/models/backstage_room.glb?v=tripo3d_final');
   const lang = useGameStore((s) => s.lang);
   const selectedTarget = useGameStore((s) => s.selectedTarget);
   const hoveredTarget = useGameStore((s) => s.hoveredTarget);
@@ -1195,4 +1195,4 @@ export const BackstageScene: React.FC = () => {
   );
 };
 
-useGLTF.preload('/models/backstage_room.glb?v=restore');
+useGLTF.preload('/models/backstage_room.glb?v=tripo3d_final');
