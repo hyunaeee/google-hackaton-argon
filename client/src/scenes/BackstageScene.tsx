@@ -2,10 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, ThreeEvent, useFrame, useThree } from '@react-three/fiber';
 import {
   ContactShadows,
-  Environment,
   Html,
   OrbitControls,
-  SpotLight,
   useGLTF,
 } from '@react-three/drei';
 import * as THREE from 'three';
@@ -386,28 +384,30 @@ function BackstageRoomModel({
   const submittingAction = useGameStore((s) => s.submittingAction);
 
   const clonedScene = useMemo(() => {
-    const root = scene.clone(true);
-    // Clone materials on architectural walls/ceiling/slats so we can smoothly fade them when occluding camera
-    root.traverse((obj) => {
+    // Use `scene` directly rather than `scene.clone(true)` so rigged THREE.SkinnedMesh
+    // characters (Hana, Jiho, Protagonist) preserve their exact bone/skeleton bindings.
+    scene.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       const n = mesh.name;
       if (
-        n.startsWith('Wall') ||
-        n.startsWith('Ceiling') ||
-        n.startsWith('OakSlat') ||
-        n.startsWith('Baseboard')
+        !mesh.userData.__wallMatCloned &&
+        (n.startsWith('Wall') ||
+          n.startsWith('Ceiling') ||
+          n.startsWith('OakSlat') ||
+          n.startsWith('Baseboard'))
       ) {
         if (Array.isArray(mesh.material)) {
           mesh.material = mesh.material.map((m) => m.clone());
         } else if (mesh.material) {
           mesh.material = mesh.material.clone();
         }
+        mesh.userData.__wallMatCloned = true;
       }
     });
-    return root;
+    return scene;
   }, [scene]);
 
   const raycaster = useMemo(() => new THREE.Raycaster(), []);
@@ -696,7 +696,7 @@ function BackstageRoomModel({
     const list: HotspotMeta[] = [
       {
         id: 'npc_hana',
-        label: isKo ? '하나 (리드 보컬)' : 'Hana (Lead Vocal)',
+        label: isKo ? '하나 (메인 보컬)' : 'Hana (Lead Vocal)',
         actionHint: worldState.hasMicrophone
           ? isKo
             ? '마이크 건네주기'
@@ -707,13 +707,17 @@ function BackstageRoomModel({
         position: [-1.95, 1.92, -0.55],
         floorPosition: [-1.95, 0.0, -0.55],
         quickActionPrompt: worldState.hasMicrophone
-          ? 'Hand the custom starlight microphone over to Hana so she can perform!'
-          : 'Talk to Hana to comfort her and ask what happened to her custom starlight microphone.',
+          ? isKo
+            ? '하나에게 전용 별빛 마이크를 건네주어 무대에 오를 수 있게 한다!'
+            : 'Hand the custom starlight microphone over to Hana so she can perform!'
+          : isKo
+            ? '하나에게 말을 걸어 진정시키고 전용 별빛 마이크에 무슨 일이 있었는지 묻는다.'
+            : 'Talk to Hana to comfort her and ask what happened to her custom starlight microphone.',
         completed: worldState.hanaTalked && !worldState.hasMicrophone,
       },
       {
         id: 'npc_jiho',
-        label: isKo ? '지호 (무대 디렉터)' : 'Jiho (Stage Director)',
+        label: isKo ? '지호 (무대 감독)' : 'Jiho (Stage Director)',
         actionHint: !worldState.jihoTalked
           ? isKo
             ? '장비함 위치 묻기'
@@ -724,18 +728,22 @@ function BackstageRoomModel({
         position: [1.55, 1.98, -1.85],
         floorPosition: [1.55, 0.0, -1.85],
         quickActionPrompt: !worldState.jihoTalked
-          ? 'Ask Jiho where the custom microphone was moved and how to unlock the equipment locker.'
-          : 'Talk to Jiho and propose organizing an alternative unplugged acoustic performance using the backstage acoustic guitar.',
+          ? isKo
+            ? '지호에게 전용 마이크가 어디로 옮겨졌는지, 보안 장비함을 어떻게 여는지 물어본다.'
+            : 'Ask Jiho where the custom microphone was moved and how to unlock the equipment locker.'
+          : isKo
+            ? '지호에게 대기실 통기타를 활용한 통기타 편곡 대체 무대를 제안한다.'
+            : 'Talk to Jiho and propose organizing an alternative unplugged acoustic performance using the backstage acoustic guitar.',
         completed: worldState.jihoTalked,
       },
       {
         id: 'access_card',
         label: worldState.hasAccessCard
           ? isKo
-            ? '할리우드 화장대'
+            ? '조명 화장대'
             : 'Hollywood Vanity'
           : isKo
-            ? 'VIP 스태프 카드키'
+            ? '특별 스태프 카드키'
             : 'VIP Staff Keycard',
         actionHint: !worldState.hasAccessCard
           ? isKo
@@ -747,8 +755,12 @@ function BackstageRoomModel({
         position: [-3.58, 1.32, -0.35],
         floorPosition: [-3.45, 0.0, -0.55],
         quickActionPrompt: !worldState.hasAccessCard
-          ? 'Inspect the vanity table and pick up the holographic VIP Staff Access Card.'
-          : 'Inspect the Hollywood vanity mirror bulbs and open the vanity drawer.',
+          ? isKo
+            ? '화장대 탁자를 조사하고 반짝이는 특별 스태프 출입 카드키를 줍는다.'
+            : 'Inspect the vanity table and pick up the holographic VIP Staff Access Card.'
+          : isKo
+            ? '화장대 조명 거울을 살펴보고 화장대 서랍을 열어본다.'
+            : 'Inspect the Hollywood vanity mirror bulbs and open the vanity drawer.',
         completed: worldState.hasAccessCard,
       },
       {
@@ -770,7 +782,7 @@ function BackstageRoomModel({
               : 'Check RFID Lock'
           : !worldState.hasMicrophone && !worldState.hanaHasMicrophone
             ? isKo
-              ? '커스텀 마이크 꺼내기'
+              ? '전용 마이크 꺼내기'
               : 'Take Custom Mic'
             : isKo
               ? '장비함 조사'
@@ -779,30 +791,42 @@ function BackstageRoomModel({
         floorPosition: [3.35, 0.0, -1.35],
         quickActionPrompt: !worldState.lockerUnlocked
           ? worldState.hasAccessCard
-            ? 'Use the VIP Staff Access Card to unlock the equipment locker.'
-            : 'Try to unlock the equipment locker without the access card.'
+            ? isKo
+              ? '특별 스태프 출입 카드키를 사용하여 보안 장비함을 연다.'
+              : 'Use the VIP Staff Access Card to unlock the equipment locker.'
+            : isKo
+              ? '출입 카드키 없이 보안 장비함을 열려고 시도해 본다.'
+              : 'Try to unlock the equipment locker without the access card.'
           : !worldState.hasMicrophone && !worldState.hanaHasMicrophone
-            ? 'Pick up Hana’s custom pearl-lilac microphone from the unlocked equipment locker.'
-            : 'Inspect the unlocked equipment locker.',
+            ? isKo
+              ? '열린 보안 장비함 안에서 하나의 진주빛 보라색 전용 마이크를 꺼낸다.'
+              : 'Pick up Hana’s custom pearl-lilac microphone from the unlocked equipment locker.'
+            : isKo
+              ? '열려 있는 보안 장비함 내부를 살펴본다.'
+              : 'Inspect the unlocked equipment locker.',
         completed:
           worldState.lockerUnlocked &&
           (worldState.hasMicrophone || worldState.hanaHasMicrophone),
       },
       {
         id: 'acoustic_guitar',
-        label: isKo ? '어쿠스틱 기타' : 'Acoustic Guitar',
+        label: isKo ? '통기타' : 'Acoustic Guitar',
         actionHint: !worldState.guitarTuned
           ? isKo
             ? '기타 조율하기'
             : 'Tune Guitar'
           : isKo
-            ? '언플러그드 무대 제안'
+            ? '통기타 무대 제안'
             : 'Propose Acoustic Stage',
         position: [2.95, 1.32, 1.25],
         floorPosition: [2.95, 0.0, 1.25],
         quickActionPrompt: !worldState.guitarTuned
-          ? 'Tune the backstage acoustic guitar on its stand and check its pickup resonance.'
-          : 'Propose organizing an alternative unplugged acoustic performance using this tuned guitar with Jiho and Hana.',
+          ? isKo
+            ? '거치대에 놓인 대기실 통기타의 줄을 조율하고 울림 상태를 점검한다.'
+            : 'Tune the backstage acoustic guitar on its stand and check its pickup resonance.'
+          : isKo
+            ? '조율된 통기타를 사용해 지호, 하나와 함께 통기타 특별 무대를 꾸미자고 제안한다.'
+            : 'Propose organizing an alternative unplugged acoustic performance using this tuned guitar with Jiho and Hana.',
         completed: worldState.guitarTuned || worldState.acousticBackupApproved,
       },
       {
@@ -811,7 +835,7 @@ function BackstageRoomModel({
         actionHint:
           worldState.hanaHasMicrophone || worldState.acousticBackupApproved
             ? isKo
-              ? '무대 문 열기 (피날레)'
+              ? '무대 문 열기 (마지막 막)'
               : 'Open Stage Door (Finale)'
             : isKo
               ? '출입문 상태 확인'
@@ -819,10 +843,16 @@ function BackstageRoomModel({
         position: [0.0, 2.38, -3.25],
         floorPosition: [0.0, 0.0, -2.85],
         quickActionPrompt: worldState.hanaHasMicrophone
-          ? 'Open the stage entrance door and launch LUMINA’s comeback performance with Hana’s recovered microphone!'
+          ? isKo
+            ? '무대 출입문을 활짝 열고 되찾은 하나의 전용 마이크로 루미나의 복귀 무대를 시작한다!'
+            : 'Open the stage entrance door and launch LUMINA’s comeback performance with Hana’s recovered microphone!'
           : worldState.acousticBackupApproved
-            ? 'Open the stage entrance door and start the Unplugged Acoustic Encore performance!'
-            : 'Try to open the stage entrance door and start the concert right now.',
+            ? isKo
+              ? '무대 출입문을 열고 통기타 특별 공연 무대를 시작한다!'
+              : 'Open the stage entrance door and start the Unplugged Acoustic Encore performance!'
+            : isKo
+              ? '지금 바로 무대 출입문을 열고 공연을 시작하려고 시도한다.'
+              : 'Try to open the stage entrance door and start the concert right now.',
         completed: worldState.stageDoorOpen,
       },
     ];
@@ -964,7 +994,7 @@ export const BackstageScene: React.FC = () => {
     return (
       <div className="w-full h-full flex items-center justify-center bg-[#181614] text-stone-300 text-sm">
         {lang === 'ko'
-          ? '백스테이지 3D 대기실을 불러오는 중입니다...'
+          ? '대기실 입체 공간을 불러오는 중입니다...'
           : 'Loading 3D Backstage Green Room...'}
       </div>
     );
@@ -1040,10 +1070,17 @@ export const BackstageScene: React.FC = () => {
         <color attach="background" args={['#181614']} />
         <fog attach="fog" args={['#181614', 10, 26]} />
 
-        {/* Warm Architectural Interior Studio Lighting (No Cyberpunk) */}
-        <ambientLight intensity={0.82} color="#fff8f0" />
+        {/* Warm Architectural Interior Studio Lighting (No Cyberpunk, Zero External HDR Dependency) */}
+        <ambientLight intensity={1.15} color="#fff8f0" />
+        <hemisphereLight args={['#fffaf2', '#3d352e', 1.1]} />
+        <directionalLight
+          position={[1.5, 4.2, 3.5]}
+          intensity={1.65}
+          color="#fff4e6"
+          castShadow
+        />
 
-        <SpotLight
+        <spotLight
           position={[-2.2, 2.95, 1.6]}
           angle={0.85}
           penumbra={0.9}
@@ -1051,7 +1088,7 @@ export const BackstageScene: React.FC = () => {
           color="#ffe8cc"
           castShadow
         />
-        <SpotLight
+        <spotLight
           position={[2.2, 2.95, 1.6]}
           angle={0.85}
           penumbra={0.9}
@@ -1072,11 +1109,13 @@ export const BackstageScene: React.FC = () => {
           color="#ffe4b5"
         />
 
-        <BackstageRoomModel
-          worldState={worldState}
-          controlsRef={controlsRef}
-          tagOpacityMode={tagOpacityMode}
-        />
+        <React.Suspense fallback={null}>
+          <BackstageRoomModel
+            worldState={worldState}
+            controlsRef={controlsRef}
+            tagOpacityMode={tagOpacityMode}
+          />
+        </React.Suspense>
 
         <ContactShadows
           position={[0, 0.005, 0]}
@@ -1085,7 +1124,6 @@ export const BackstageScene: React.FC = () => {
           blur={2.0}
           far={4.0}
         />
-        <Environment preset="apartment" />
 
         <OrbitControls
           ref={controlsRef}
