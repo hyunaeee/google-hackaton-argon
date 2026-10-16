@@ -67,7 +67,7 @@ const TEN_NAVER_STYLES: StylePresetConfig[] = [
   },
   {
     key: 'NAVER_KPOP_DEMON_HUNTERS',
-    backendStyleId: 'NAVER_ROMANCE_IDOL',
+    backendStyleId: 'NAVER_KPOP_DEMON_HUNTERS',
     nameKo: '2. 케이팝 데몬 헌터스 입체풍',
     nameEn: '2. K-Pop Demon Hunters 3D',
     refWorkKo: '소니 애니메이션 케이팝 데몬 헌터스 풍',
@@ -84,7 +84,7 @@ const TEN_NAVER_STYLES: StylePresetConfig[] = [
   },
   {
     key: 'NAVER_HIGHTEEN_POP',
-    backendStyleId: 'NAVER_ROMANCE_IDOL',
+    backendStyleId: 'NAVER_HIGHTEEN_POP',
     nameKo: '3. 하이틴 팝 로맨스체',
     nameEn: '3. High-Teen Pop Romance',
     refWorkKo: '작전명 순정 · 소녀의 세계 풍',
@@ -101,7 +101,7 @@ const TEN_NAVER_STYLES: StylePresetConfig[] = [
   },
   {
     key: 'NAVER_SHOWBIZ_DRAMA',
-    backendStyleId: 'NAVER_ROMANCE_IDOL',
+    backendStyleId: 'NAVER_SHOWBIZ_DRAMA',
     nameKo: '4. 쇼비즈니스 오피스 드라마체',
     nameEn: '4. Showbiz Office Drama',
     refWorkKo: '내 남편과 결혼해줘 · 사내맞선 풍',
@@ -135,7 +135,7 @@ const TEN_NAVER_STYLES: StylePresetConfig[] = [
   },
   {
     key: 'NAVER_RETRO_PURE',
-    backendStyleId: 'NAVER_YOUTH_DRAMA',
+    backendStyleId: 'NAVER_RETRO_PURE',
     nameKo: '6. 레트로 순정 만화체',
     nameEn: '6. Retro Pure Manhwa',
     refWorkKo: '세기말 풋사과 보습학원 · 치즈인더트랩 풍',
@@ -152,7 +152,7 @@ const TEN_NAVER_STYLES: StylePresetConfig[] = [
   },
   {
     key: 'NAVER_CLEAN_MINIMAL',
-    backendStyleId: 'NAVER_YOUTH_DRAMA',
+    backendStyleId: 'NAVER_CLEAN_MINIMAL',
     nameKo: '7. 모던 미니멀 일상체',
     nameEn: '7. Clean Minimal Webtoon',
     refWorkKo: '유미의 세포들 · 간 떨어지는 동거 풍',
@@ -186,7 +186,7 @@ const TEN_NAVER_STYLES: StylePresetConfig[] = [
   },
   {
     key: 'NAVER_DYNAMIC_BRUSH',
-    backendStyleId: 'NAVER_ACTION_MANHWA',
+    backendStyleId: 'NAVER_DYNAMIC_BRUSH',
     nameKo: '9. 다이나믹 브러시 펜선체',
     nameEn: '9. Dynamic Brush-Ink Manhwa',
     refWorkKo: '화산귀환 · 일렉시드 풍',
@@ -366,7 +366,13 @@ export const WebtoonModal: React.FC = () => {
 
   // Build 2K (2048px wide) single continuous vertical webtoon canvas with speech bubbles inside
   useEffect(() => {
-    if (!isWebtoonModalOpen || !generatedEpisode || !readyToRenderCanvas) return;
+    if (
+      !isWebtoonModalOpen ||
+      !generatedEpisode ||
+      !readyToRenderCanvas ||
+      generatingWebtoon
+    )
+      return;
 
     let cancelled = false;
     const render2KVerticalWebtoon = async () => {
@@ -450,7 +456,9 @@ export const WebtoonModal: React.FC = () => {
         // 3. Optional Style Hero Showcase Strip at top of webtoon
         if (activePreset.key !== 'ORIGINAL_3D') {
           try {
-            const styleHeroImg = await loadImage(activePreset.previewUrl);
+            const heroBannerSrc =
+              cuts[0]?.imageUrl || activePreset.previewUrl;
+            const styleHeroImg = await loadImage(heroBannerSrc);
             ctx.save();
             drawRoundedRect(
               ctx,
@@ -491,8 +499,8 @@ export const WebtoonModal: React.FC = () => {
               'bold 28px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
             ctx.fillText(
               isKo
-                ? `선택한 그림체 미리보기: ${activePreset.nameKo}`
-                : `Selected Art Style: ${activePreset.nameEn}`,
+                ? `AI 실시간 생성 그림체: ${activePreset.nameKo}`
+                : `AI Generated Art Style: ${activePreset.nameEn}`,
               PAD_X + 44,
               cursorY + STYLE_BANNER_H - 155
             );
@@ -523,21 +531,23 @@ export const WebtoonModal: React.FC = () => {
           cursorY += STYLE_BANNER_H;
         }
 
-        // 4. Render each of the 8 sequential cuts with distinct artwork + embedded speech bubbles
+        // 4. Render each sequential cut with AI-generated style artwork (or 3D capture) + embedded speech bubbles
         for (let i = 0; i < cuts.length; i++) {
           const cut = cuts[i];
           const panelX = PAD_X;
           const panelY = cursorY;
 
-          // Determine source image: Original 3D capture or distinct NanoBanana Pro cut_01..cut_08
+          // Determine source image: Original 3D capture, Gemini AI generated cut imageUrl, or fallback cut_01..cut_08
           const shot3D =
             multiAngle3DFrames[cut.cameraShotId as CameraShotId] ?? null;
           const distinctCutUrl =
             DISTINCT_CUT_URLS[i % DISTINCT_CUT_URLS.length];
+          const hasAiGeneratedCut =
+            activePreset.key !== 'ORIGINAL_3D' && Boolean(cut.imageUrl);
           const primarySrc =
             activePreset.key === 'ORIGINAL_3D' && shot3D
               ? shot3D
-              : distinctCutUrl;
+              : cut.imageUrl || distinctCutUrl;
 
           let img: HTMLImageElement | null = null;
           try {
@@ -556,7 +566,7 @@ export const WebtoonModal: React.FC = () => {
           ctx.clip();
 
           if (img) {
-            ctx.filter = activePreset.canvasFilter;
+            ctx.filter = hasAiGeneratedCut ? 'none' : activePreset.canvasFilter;
             const scale = Math.max(PANEL_W / img.width, PANEL_H / img.height);
             const dw = img.width * scale;
             const dh = img.height * scale;
@@ -569,8 +579,8 @@ export const WebtoonModal: React.FC = () => {
             ctx.fillRect(panelX, panelY, PANEL_W, PANEL_H);
           }
 
-          // Subtle style color wash
-          if (activePreset.tintAlpha > 0) {
+          // Subtle style color wash only when using fallback static image
+          if (!hasAiGeneratedCut && activePreset.tintAlpha > 0) {
             ctx.fillStyle = activePreset.tintColor;
             ctx.globalAlpha = activePreset.tintAlpha;
             ctx.fillRect(panelX, panelY, PANEL_W, PANEL_H);
@@ -785,6 +795,7 @@ export const WebtoonModal: React.FC = () => {
     isWebtoonModalOpen,
     generatedEpisode,
     readyToRenderCanvas,
+    generatingWebtoon,
     activePreset,
     multiAngle3DFrames,
     isKo,
@@ -1056,13 +1067,13 @@ export const WebtoonModal: React.FC = () => {
                 <RefreshCw className="w-8 h-8 text-amber-300 animate-spin" />
                 <div className="text-sm font-bold text-stone-100">
                   {isKo
-                    ? `'${activePreset.nameKo}' 테마로 초고화질 통짜 세로 웹툰 및 말풍선 합성 중...`
-                    : `Compositing 2K (2048px) continuous vertical webtoon in '${activePreset.nameEn}' style...`}
+                    ? `'${activePreset.nameKo}' 그림체로 Gemini 이미지 생성 API가 새 웹툰 작화 및 대사를 실시간 생성 중...`
+                    : `Generating real AI webtoon cut illustrations in '${activePreset.nameEn}' style via Gemini Image API...`}
                 </div>
                 <div className="text-xs text-stone-400">
                   {isKo
-                    ? `${activePreset.refWorkKo} 감성 후보정 및 플레이 기록 반영 중`
-                    : `Applying ${activePreset.refWorkEn} grading & verified story log`}
+                    ? `${activePreset.refWorkKo} 작화 프롬프트로 컷별 새 일러스트 생성 및 플레이 기록 반영 중 (약 6~10초 소요)`
+                    : `Generating new per-cut artwork with ${activePreset.refWorkEn} style prompts & verified story log (~6-10s)`}
                 </div>
               </div>
             ) : !stitched2KDataUrl ? (
@@ -1120,8 +1131,8 @@ export const WebtoonModal: React.FC = () => {
                   </button>
                   <span className="text-[11px] text-stone-400">
                     {isKo
-                      ? '좌측 목록에서 다른 웹툰 그림체를 선택한 뒤 이 버튼을 눌러 생성할 수 있습니다'
-                      : 'Pick any style on the left, then click this button to generate your 8-cut 2K webtoon'}
+                      ? '좌측 목록에서 다른 웹툰 그림체를 선택한 뒤 이 버튼을 눌러 실제 새 작화로 생성할 수 있습니다'
+                      : 'Pick any style on the left, then click this button to generate new AI cut artwork in that style'}
                   </span>
                 </div>
               </div>
@@ -1130,8 +1141,8 @@ export const WebtoonModal: React.FC = () => {
                 <div className="p-4 rounded-xl bg-stone-900 border border-white/10">
                   <h3 className="text-sm font-bold text-amber-200">
                     {isKo
-                      ? '나노바나나 프로 8컷 개별 이미지 연출 및 대사 명세'
-                      : 'NanoBanana Pro 8-Cut Distinct Image Prompts & Script'}
+                      ? `Gemini 이미지 API 실시간 생성 컷별 작화 및 대사 명세 (${activePreset.nameKo})`
+                      : `Gemini Image API Per-Cut Generated Artwork & Script (${activePreset.nameEn})`}
                   </h3>
                   <p className="text-xs text-stone-400 mt-1">
                     {generatedEpisode.authorComment}
@@ -1143,7 +1154,10 @@ export const WebtoonModal: React.FC = () => {
                     className="p-4 rounded-xl bg-stone-900/90 border border-white/10 flex gap-4 items-start"
                   >
                     <img
-                      src={DISTINCT_CUT_URLS[idx % DISTINCT_CUT_URLS.length]}
+                      src={
+                        cut.imageUrl ||
+                        DISTINCT_CUT_URLS[idx % DISTINCT_CUT_URLS.length]
+                      }
                       alt={isKo ? `제${cut.cutNumber}컷` : `Cut ${cut.cutNumber}`}
                       className="w-28 h-20 rounded-lg object-cover border border-white/15 shrink-0"
                     />
@@ -1162,6 +1176,11 @@ export const WebtoonModal: React.FC = () => {
                           ? `효과음: ${cut.sfxText} (${cut.sfxSub}) · 속마음: ${cut.innerMonologue}`
                           : `Shot: ${cut.cameraShotId} · SFX: ${cut.sfxText} (${cut.sfxSub}) · Inner: ${cut.innerMonologue}`}
                       </div>
+                      {cut.imagePrompt && (
+                        <div className="text-[10px] text-amber-300/75 font-mono break-all pt-1">
+                          Prompt: {cut.imagePrompt}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -1048,6 +1048,90 @@ export function buildDefault10CutEpisode(
   };
 }
 
+const STYLE_ART_PROMPTS: Record<WebtoonStyleId, string> = {
+  ORIGINAL_3D: '',
+  NAVER_ROMANCE_IDOL:
+    'Korean romance idol webtoon illustration in the exact art style of True Beauty (여신강림) and Debut or Die. Sparkling expressive anime-manhwa idol eyes, glossy lips, soft pastel peach and warm rose-gold studio bloom, delicate clean manhwa line art',
+  NAVER_KPOP_DEMON_HUNTERS:
+    'Stylized 3D animated feature film illustration in the exact art style of Sony Pictures Animation K-Pop Demon Hunters. Bold painterly 3D textures, expressive stylized K-pop idol character proportions, vibrant concert rim lighting, rich 3D cel-shaded rendering',
+  NAVER_HIGHTEEN_POP:
+    'Korean high-teen pop romance webtoon illustration in the exact art style of Operation: True Love (작전명 순정). Crisp modern digital cel-shading, trendy coral pink and warm champagne color palette, fresh youthful K-pop manhwa aesthetic',
+  NAVER_SHOWBIZ_DRAMA:
+    'Mature glamorous Korean showbiz office drama webtoon illustration in the exact art style of Marry My Husband and Business Proposal. Sharp tailored silhouettes, luxury backstage VIP green room lighting, sophisticated romance manhwa proportions',
+  NAVER_YOUTH_DRAMA:
+    'Soft emotional watercolor youth webtoon illustration in the exact art style of Seasons of Blossom (청춘 블라썸). Gentle hand-painted watercolor wash, warm golden-hour sunlight, soft nostalgic pastel tones, delicate pencil-ink outlines',
+  NAVER_RETRO_PURE:
+    '1990s retro Korean pure shojo manhwa illustration in the exact art style of After School Lessons for Unripe Apples (세기말 풋사과 보습학원). Vintage analog screentone dots, classic fine pen ink lines, warm cream and muted retro peach palette',
+  NAVER_CLEAN_MINIMAL:
+    "Cute clean minimal Korean slice-of-life webtoon illustration in the exact art style of Yumi's Cells (유미의 세포들). Simple bold rounded outlines, adorable simplified expressive cartoon-manhwa characters, flat clean warm studio colors",
+  NAVER_ACTION_MANHWA:
+    'High-impact Korean action fantasy manhwa illustration in the exact art style of Solo Leveling (나 혼자만 레벨업) and Omniscient Reader. Heavy dramatic black ink shadows, glowing violet-gold energy aura, intense sharp eyes, dynamic wide-angle comic composition',
+  NAVER_DYNAMIC_BRUSH:
+    'Dynamic Korean martial-arts brush-ink manhwa illustration in the exact art style of Return of the Mount Hua Sect (화산귀환). Expressive rough sumi-e ink brush strokes, dynamic speed lines, dramatic gold and crimson spotlight highlights',
+  NAVER_NOIR_STAGE:
+    'Cinematic dark noir thriller Korean webtoon illustration in the exact art style of Lookism and Muse on Fame (내가 죽기로 결심한 것은). Deep chiaroscuro backstage shadows, moody filmic grain, stark dramatic single-spotlight contrast',
+};
+
+function buildCutSceneDescription(cutNumber: number, isAcoustic: boolean): string {
+  const characterRef =
+    'Hana (female K-pop idol lead vocalist, long wavy dark hair with subtle violet-silver sheen, glamorous stage outfit) and Jiho (male stage manager in sleek charcoal suit with headset)';
+  switch (cutNumber) {
+    case 1:
+      return `Wide establishing shot of a luxury K-pop backstage VIP dressing room with a glowing 05:00 countdown clock on the wall, Hollywood bulb vanity mirror, and tense atmosphere with ${characterRef}.`;
+    case 2:
+      return `Emotional close-up of K-pop idol Hana looking distressed and clasping her empty hands in front of a brightly lit Hollywood bulb makeup vanity mirror backstage.`;
+    case 3:
+      return `Medium shot of male stage manager Jiho in a charcoal suit pressing his radio earpiece urgently while holding a backstage cue clipboard.`;
+    case 4:
+      return `Close-up dramatic angle of a glass lounge coffee table with an audio engineer battery inspection log sheet and backstage pass lanyard under warm studio spotlight.`;
+    case 5:
+      return `Close-up of a glowing holographic VIP Staff Access Card reflecting warm light beside perfume bottles under a Hollywood bulb vanity mirror.`;
+    case 6:
+      return isAcoustic
+        ? `Dramatic shot of ${characterRef} gathering around a warm cedar-top acoustic guitar on a stand in the backstage corner, deciding on a bold unplugged live stage.`
+        : `Dramatic close-up of a hand tapping a holographic VIP access card against an RFID security equipment locker, switching the LED from red to glowing emerald green.`;
+    case 7:
+      return isAcoustic
+        ? `Close-up of finely tuned acoustic guitar strings resonating with warm golden musical light in the backstage dressing room.`
+        : `Heroic reveal shot of a custom pearl-lilac and rose-gold wireless Starlight Microphone gleaming inside an open steel security locker.`;
+    case 8:
+      return `Warm emotional medium shot of Hana holding ${isAcoustic ? 'the tuned acoustic guitar' : 'her custom Starlight Microphone'} with confident sparkling eyes while syncing her wireless in-ear monitor pack near the velvet lounge sofa.`;
+    case 9:
+      return `Dramatic low-angle shot from behind ${characterRef} as the heavy soundproof STAGE DOOR swings open with a glowing ON AIR sign and concert laser beams pouring in.`;
+    case 10:
+    default:
+      return isAcoustic
+        ? `Grand finale wide concert shot: Hana singing passionately on an intimate golden-lit stage with acoustic guitar accompaniment as 20,000 cheering fans wave lightsticks.`
+        : `Grand finale wide concert shot: Hana raising her gleaming Starlight Microphone on the main arena stage under violet and gold spotlights as glittering confetti rains down.`;
+  }
+}
+
+async function generateSingleCutImage(
+  ai: GoogleGenAI,
+  fullPrompt: string
+): Promise<string | undefined> {
+  for (const imgModel of ['gemini-3.1-flash-lite-image', 'gemini-3.1-flash-image']) {
+    try {
+      const res = await ai.models.generateContent({
+        model: imgModel,
+        contents: fullPrompt,
+        config: {
+          responseModalities: ['IMAGE'],
+        },
+      });
+      const parts = res.candidates?.[0]?.content?.parts || [];
+      const imgPart = parts.find((p) => p.inlineData && p.inlineData.data);
+      if (imgPart?.inlineData?.data) {
+        const mime = imgPart.inlineData.mimeType || 'image/jpeg';
+        return `data:${mime};base64,${imgPart.inlineData.data}`;
+      }
+    } catch {
+      // try fallback image model
+    }
+  }
+  return undefined;
+}
+
 export async function generateFullWebtoonEpisode(
   worldState: WorldState,
   styleId: WebtoonStyleId,
@@ -1061,6 +1145,30 @@ export async function generateFullWebtoonEpisode(
 
   const model = process.env.GEMINI_MODEL || 'gemini-4-argon';
   const ai = new GoogleGenAI({ apiKey });
+
+  const isAcoustic =
+    worldState.endingReached === 'UNPLUGGED_ENCORE' ||
+    (worldState.acousticBackupApproved && !worldState.hanaHasMicrophone);
+
+  const styleArtPrompt = STYLE_ART_PROMPTS[styleId] || '';
+
+  // 1. Launch parallel Gemini image generation for all cuts if a 2D/3D webtoon theme is selected
+  const cutImagesPromise: Promise<Array<{ imageUrl?: string; imagePrompt: string }>> =
+    styleId !== 'ORIGINAL_3D' && styleArtPrompt
+      ? Promise.all(
+          defaultEpisode.cuts.map(async (cut) => {
+            const sceneDesc = buildCutSceneDescription(cut.cutNumber, isAcoustic);
+            const fullPrompt = `${styleArtPrompt}. Single horizontal webtoon panel illustration: ${sceneDesc} Pure artwork only, NO text, NO speech bubbles, NO letters, NO watermarks.`;
+            const imageUrl = await generateSingleCutImage(ai, fullPrompt);
+            return { imageUrl, imagePrompt: fullPrompt };
+          })
+        )
+      : Promise.resolve(
+          defaultEpisode.cuts.map((cut) => ({
+            imageUrl: undefined,
+            imagePrompt: `Original 3D multi-angle camera capture (${cut.cameraShotId})`,
+          }))
+        );
 
   const playerHistorySummary = worldState.history.map((h) => ({
     turn: h.turnNumber,
@@ -1078,7 +1186,7 @@ export async function generateFullWebtoonEpisode(
 
   const prompt = `You are a flagship Webtoon Storyboard Writer & Director creating a full 10-cut vertical scroll webtoon episode (EP.01) for FANVERSE: "${CANONICAL_WORLD_FACTS.episodeTitle}".
 
-SELECTED ART STYLE: ${styleId}
+SELECTED ART STYLE: ${styleId} (${styleArtPrompt || 'Original 3D Backstage Capture'})
 TARGET LANGUAGE: ${lang === 'ko' ? '100% Korean Only (한국어 전용)' : '100% English Only (EN)'}
 PLAYER'S FINAL WORLD STATE:
 ${JSON.stringify(
@@ -1120,35 +1228,54 @@ Rules:
 3. ${languageDirective} Directly quote or reflect the player's actual inputs and decisions.
 Return ONLY valid JSON matching the schema.`;
 
-  try {
-    const interaction = await ai.interactions.create({
-      model,
-      input: prompt,
-      response_format: {
-        type: 'text',
-        mime_type: 'application/json',
-        schema: WEBTOON_EPISODE_JSON_SCHEMA,
-      },
-      generation_config: {
-        thinking_level: 'medium',
-        max_output_tokens: 16384,
-      },
-    });
+  const storyboardPromise: Promise<GeneratedWebtoonEpisode> = (async () => {
+    try {
+      const interaction = await Promise.race([
+        ai.interactions.create({
+          model,
+          input: prompt,
+          response_format: {
+            type: 'text',
+            mime_type: 'application/json',
+            schema: WEBTOON_EPISODE_JSON_SCHEMA,
+          },
+          generation_config: {
+            thinking_level: 'low',
+            max_output_tokens: 8192,
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Storyboard timeout')), 9500)
+        ),
+      ]);
 
-    const text = interaction.output_text;
-    if (!text) {
+      const text = interaction.output_text;
+      if (!text) return defaultEpisode;
+      const parsed = GeneratedWebtoonEpisodeSchema.safeParse(JSON.parse(text));
+      if (!parsed.success || parsed.data.cuts.length < 8) {
+        return defaultEpisode;
+      }
+      return parsed.data;
+    } catch {
       return defaultEpisode;
     }
+  })();
 
-    const parsed = GeneratedWebtoonEpisodeSchema.safeParse(JSON.parse(text));
-    if (!parsed.success || parsed.data.cuts.length < 8) {
-      return defaultEpisode;
-    }
+  const [episodeBase, generatedImages] = await Promise.all([
+    storyboardPromise,
+    cutImagesPromise,
+  ]);
 
-    return parsed.data;
-  } catch {
-    return defaultEpisode;
-  }
+  return {
+    ...episodeBase,
+    styleId,
+    cuts: episodeBase.cuts.map((cut, idx) => ({
+      ...cut,
+      imageUrl: generatedImages[idx]?.imageUrl,
+      imagePrompt: generatedImages[idx]?.imagePrompt,
+    })),
+  };
 }
+
 
 

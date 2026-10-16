@@ -56,8 +56,14 @@ export type InventoryItem = (typeof INVENTORY_ITEMS)[number];
 export const WEBTOON_STYLE_IDS = [
   'ORIGINAL_3D',
   'NAVER_ROMANCE_IDOL',
-  'NAVER_ACTION_MANHWA',
+  'NAVER_KPOP_DEMON_HUNTERS',
+  'NAVER_HIGHTEEN_POP',
+  'NAVER_SHOWBIZ_DRAMA',
   'NAVER_YOUTH_DRAMA',
+  'NAVER_RETRO_PURE',
+  'NAVER_CLEAN_MINIMAL',
+  'NAVER_ACTION_MANHWA',
+  'NAVER_DYNAMIC_BRUSH',
   'NAVER_NOIR_STAGE',
 ] as const;
 
@@ -92,6 +98,8 @@ export const WebtoonCutSchema = z.object({
   dialogue: z.string().min(1),
   innerMonologue: z.string().min(1),
   moodColor: z.enum(['violet', 'magenta', 'cyan', 'gold', 'emerald']),
+  imageUrl: z.string().optional(),
+  imagePrompt: z.string().optional(),
 });
 
 export type WebtoonCut = z.infer<typeof WebtoonCutSchema>;
