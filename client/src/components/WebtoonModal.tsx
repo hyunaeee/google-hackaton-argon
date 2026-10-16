@@ -8,6 +8,10 @@ import {
   FileText,
   Eye,
   Globe,
+  ArrowLeft,
+  Sparkles,
+  Compass,
+  RotateCcw,
 } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 import { CameraShotId, WebtoonStyleId } from '../../../shared/types';
@@ -64,11 +68,11 @@ const TEN_NAVER_STYLES: StylePresetConfig[] = [
   {
     key: 'NAVER_KPOP_DEMON_HUNTERS',
     backendStyleId: 'NAVER_ROMANCE_IDOL',
-    nameKo: '2. 케이팝 데몬 헌터스 3D체',
+    nameKo: '2. 케이팝 데몬 헌터스 입체풍',
     nameEn: '2. K-Pop Demon Hunters 3D',
     refWorkKo: '소니 애니메이션 케이팝 데몬 헌터스 풍',
     refWorkEn: 'Ref: K-Pop Demon Hunters Stylized 3D',
-    descKo: '세련된 V라인 3D 아이돌 조형과 입체적인 셀 셰이딩 질감',
+    descKo: '세련된 입체 아이돌 조형과 선명한 음영 질감',
     descEn: 'Stylized 3D K-Pop idol proportions with painterly studio shading',
     previewUrl: '/webtoon/style_kpop_demon_hunters.png',
     canvasFilter: 'contrast(1.14) saturate(1.18) brightness(1.02)',
@@ -217,11 +221,11 @@ const TEN_NAVER_STYLES: StylePresetConfig[] = [
   {
     key: 'ORIGINAL_3D',
     backendStyleId: 'ORIGINAL_3D',
-    nameKo: '원본 3D 플레이 캡처 모드',
+    nameKo: '원본 입체 대기실 포착 방식',
     nameEn: 'Original 3D Scene Captures',
-    refWorkKo: '실시간 3D 대기실 멀티 앵글 캡처',
+    refWorkKo: '실시간 입체 대기실 다각도 포착',
     refWorkEn: 'Real-time 3D Multi-Angle Captures',
-    descKo: '플레이한 3D 화면 그대로 말풍선과 자막을 합성한 2K 세로 웹툰',
+    descKo: '진행한 입체 화면 그대로 말풍선과 자막을 합성한 초고화질 세로 웹툰',
     descEn: 'Your actual 3D backstage camera captures stitched at 2K resolution',
     previewUrl: '/webtoon/cut_01.png',
     canvasFilter: 'contrast(1.04) saturate(1.04)',
@@ -311,6 +315,9 @@ export const WebtoonModal: React.FC = () => {
     generatedEpisode,
     generatingWebtoon,
     generateWebtoonEpisode,
+    setSelectedTarget,
+    submitPlayerAction,
+    resetEpisode,
   } = useGameStore();
 
   const isKo = lang === 'ko';
@@ -318,6 +325,7 @@ export const WebtoonModal: React.FC = () => {
   const [selectedPresetKey, setSelectedPresetKey] =
     useState<ExtendedWebtoonStyleKey>('NAVER_ROMANCE_IDOL');
   const [showPromptDetails, setShowPromptDetails] = useState(false);
+  const [readyToRenderCanvas, setReadyToRenderCanvas] = useState(false);
   const [stitched2KDataUrl, setStitched2KDataUrl] = useState<string | null>(
     null
   );
@@ -327,33 +335,38 @@ export const WebtoonModal: React.FC = () => {
     TEN_NAVER_STYLES.find((s) => s.key === selectedPresetKey) ??
     TEN_NAVER_STYLES[0];
 
-  // Trigger episode generation when opened or when language changes
-  useEffect(() => {
-    if (isWebtoonModalOpen && !generatedEpisode && !generatingWebtoon) {
-      generateWebtoonEpisode(activePreset.backendStyleId, lang);
-    }
-  }, [
-    isWebtoonModalOpen,
-    generatedEpisode,
-    generatingWebtoon,
-    activePreset.backendStyleId,
-    lang,
-    generateWebtoonEpisode,
-  ]);
-
-  const handleSelectPreset = async (preset: StylePresetConfig) => {
+  // Selecting any style in the left sidebar immediately shows the Blank Webtoon Canvas with the big centered Generate button
+  const handleSelectPreset = (preset: StylePresetConfig) => {
     setSelectedPresetKey(preset.key);
-    await generateWebtoonEpisode(preset.backendStyleId, lang);
+    setReadyToRenderCanvas(false);
+    setStitched2KDataUrl(null);
+    setShowPromptDetails(false);
+  };
+
+  const handleGenerateWithSelectedTheme = async (
+    presetOverride?: StylePresetConfig
+  ) => {
+    const targetPreset = presetOverride ?? activePreset;
+    if (presetOverride) {
+      setSelectedPresetKey(presetOverride.key);
+    }
+    setReadyToRenderCanvas(true);
+    setStitched2KDataUrl(null);
+    await generateWebtoonEpisode(targetPreset.backendStyleId, lang);
   };
 
   const handleToggleLanguage = async (nextLang: 'en' | 'ko') => {
     setLang(nextLang);
-    await generateWebtoonEpisode(activePreset.backendStyleId, nextLang);
+    // Only re-generate automatically if the user has already generated the current canvas
+    if (readyToRenderCanvas && generatedEpisode) {
+      setStitched2KDataUrl(null);
+      await generateWebtoonEpisode(activePreset.backendStyleId, nextLang);
+    }
   };
 
   // Build 2K (2048px wide) single continuous vertical webtoon canvas with speech bubbles inside
   useEffect(() => {
-    if (!isWebtoonModalOpen || !generatedEpisode) return;
+    if (!isWebtoonModalOpen || !generatedEpisode || !readyToRenderCanvas) return;
 
     let cancelled = false;
     const render2KVerticalWebtoon = async () => {
@@ -403,7 +416,7 @@ export const WebtoonModal: React.FC = () => {
         ctx.font = 'bold 30px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
         ctx.fillText(
           isKo
-            ? `FANVERSE 2K 오리지널 웹툰  ·  ${activePreset.nameKo} (${activePreset.refWorkKo})`
+            ? `FANVERSE 초고화질 오리지널 웹툰  ·  ${activePreset.nameKo} (${activePreset.refWorkKo})`
             : `FANVERSE 2K ORIGINAL WEBTOON  ·  ${activePreset.nameEn} (${activePreset.refWorkEn})`,
           PAD_X,
           120
@@ -415,7 +428,7 @@ export const WebtoonModal: React.FC = () => {
         ctx.fillText(
           generatedEpisode.episodeSubtitle ||
             (isKo
-              ? 'EP.01 — 쇼타임 10분 전, 사라진 메인 마이크'
+              ? '제1화 — 공연 10분 전, 사라진 메인 마이크'
               : 'EP.01 — 10 Minutes to Showtime: The Missing Mic'),
           PAD_X,
           220
@@ -425,7 +438,9 @@ export const WebtoonModal: React.FC = () => {
         ctx.fillStyle = '#a8a29e';
         ctx.font = '500 32px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
         ctx.fillText(
-          `${isKo ? activePreset.descKo : activePreset.descEn}   |   2048px 2K Ultra HD Vertical Strip`,
+          isKo
+            ? `${activePreset.descKo}   |   초고화질 세로 스크롤 웹툰`
+            : `${activePreset.descEn}   |   2048px 2K Ultra HD Vertical Strip`,
           PAD_X,
           295
         );
@@ -476,7 +491,7 @@ export const WebtoonModal: React.FC = () => {
               'bold 28px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
             ctx.fillText(
               isKo
-                ? `선택한 그림체 프리뷰: ${activePreset.nameKo}`
+                ? `선택한 그림체 미리보기: ${activePreset.nameKo}`
                 : `Selected Art Style: ${activePreset.nameEn}`,
               PAD_X + 44,
               cursorY + STYLE_BANNER_H - 155
@@ -609,7 +624,9 @@ export const WebtoonModal: React.FC = () => {
           ctx.font =
             'bold 24px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
           ctx.fillText(
-            `CUT 0${cut.cutNumber}  ·  ${cut.actLabel}  ·  ${cut.sceneTitle}`,
+            isKo
+              ? `제${cut.cutNumber}컷  ·  ${cut.actLabel}  ·  ${cut.sceneTitle}`
+              : `CUT 0${cut.cutNumber}  ·  ${cut.actLabel}  ·  ${cut.sceneTitle}`,
             narX + 32,
             narY + 42
           );
@@ -676,11 +693,11 @@ export const WebtoonModal: React.FC = () => {
             const speakerText =
               cut.speaker === 'HANA'
                 ? isKo
-                  ? '하나 (HANA)'
+                  ? '하나'
                   : 'HANA'
                 : cut.speaker === 'JIHO'
                   ? isKo
-                    ? '지호 (JIHO)'
+                    ? '지호'
                     : 'JIHO'
                   : cut.speaker === 'FAN'
                     ? isKo
@@ -734,7 +751,7 @@ export const WebtoonModal: React.FC = () => {
         ctx.fillText(
           generatedEpisode.authorComment ||
             (isKo
-              ? 'To Be Continued — FANVERSE 1화 완결'
+              ? '다음 화에 계속 — FANVERSE 제1화 완결'
               : 'To Be Continued — End of FANVERSE Episode 01'),
           W / 2,
           cursorY + 70
@@ -743,7 +760,9 @@ export const WebtoonModal: React.FC = () => {
         ctx.font =
           '500 24px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
         ctx.fillText(
-          'FANVERSE · Gemini 4 Argon Verified State Engine + NanoBanana Pro 2K Webtoon Pipeline',
+          isKo
+            ? 'FANVERSE · 제미나이 4 아르곤 상태 검증 엔진 + 나노바나나 프로 초고화질 웹툰 제작소'
+            : 'FANVERSE · Gemini 4 Argon Verified State Engine + NanoBanana Pro 2K Webtoon Pipeline',
           W / 2,
           cursorY + 125
         );
@@ -765,6 +784,7 @@ export const WebtoonModal: React.FC = () => {
   }, [
     isWebtoonModalOpen,
     generatedEpisode,
+    readyToRenderCanvas,
     activePreset,
     multiAngle3DFrames,
     isKo,
@@ -780,6 +800,57 @@ export const WebtoonModal: React.FC = () => {
     link.click();
   };
 
+  const handleReturnTo3DGame = () => {
+    setIsWebtoonModalOpen(false);
+  };
+
+  const handleContinueNextRouteIn3D = async () => {
+    setIsWebtoonModalOpen(false);
+    // Automatically guide & trigger the next or alternative route in the 3D backstage
+    if (!worldState?.acousticBackupApproved) {
+      setSelectedTarget('acoustic_guitar');
+      await submitPlayerAction(
+        isKo
+          ? '어쿠스틱 기타 스탠드를 점검하고 지호와 함께 언플러그드 라이브 백업 무대를 준비한다'
+          : 'Inspect and tune the acoustic guitar on the stand to prepare the Unplugged Acoustic Encore Stage with Jiho',
+        'acoustic_guitar'
+      );
+    } else if (!worldState?.hanaHasMicrophone) {
+      const nextTarget = !worldState?.hasAccessCard
+        ? 'access_card'
+        : !worldState?.lockerUnlocked
+          ? 'equipment_locker'
+          : 'microphone';
+      setSelectedTarget(nextTarget);
+      await submitPlayerAction(
+        isKo
+          ? '스타라이트 커스텀 마이크 복구 루트를 진행해 완전체 메인 스테이지 엔딩에 도전한다'
+          : 'Proceed with the Starlight Custom Mic recovery route to unlock the Full Comeback Stage ending',
+        nextTarget
+      );
+    } else {
+      setSelectedTarget('npc_hana');
+      await submitPlayerAction(
+        isKo
+          ? '하나와 지호에게 다가가 백스테이지 에필로그 대화를 나눈다'
+          : 'Talk with Hana and Jiho in the 3D backstage for the post-show encore conversation',
+        'npc_hana'
+      );
+    }
+  };
+
+  const handleStartNewEpisode = async () => {
+    setIsWebtoonModalOpen(false);
+    await resetEpisode();
+  };
+
+  const speakerLabelForCut = (speaker: string) => {
+    if (speaker === 'HANA') return isKo ? '하나' : 'HANA';
+    if (speaker === 'JIHO') return isKo ? '지호' : 'JIHO';
+    if (speaker === 'FAN') return isKo ? '매니저' : 'MANAGER';
+    return isKo ? '내레이션' : 'NARRATOR';
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 select-none">
       {/* Main Modal Container — Warm Charcoal & Ivory Tone matching main screen */}
@@ -787,24 +858,32 @@ export const WebtoonModal: React.FC = () => {
         {/* Top Modal Header */}
         <div className="px-5 py-3.5 bg-stone-950 border-b border-white/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-stone-900 border border-amber-300/30 flex items-center justify-center">
+            <button
+              onClick={handleReturnTo3DGame}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-900 hover:bg-stone-800 border border-amber-300/40 text-amber-200 text-xs font-bold transition cursor-pointer shadow-sm"
+              title={isKo ? '원래 3D 게임 화면으로 돌아가기' : 'Return to 3D Backstage Game'}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>{isKo ? '3D 대기실로 돌아가기' : 'Back to 3D Stage'}</span>
+            </button>
+            <div className="w-9 h-9 rounded-xl bg-stone-900 border border-amber-300/30 hidden sm:flex items-center justify-center">
               <BookOpen className="w-4 h-4 text-amber-300" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm sm:text-base font-bold text-stone-100">
                   {isKo
-                    ? '개인화 웹툰 1화 생성기 (2K 초고화질 · 10종 네이버 웹툰체)'
-                    : 'Episode 01 Personalized 2K Webtoon Studio (10 Naver Webtoon Styles)'}
+                    ? '개인화 웹툰 제1화 제작소 (테마 선택 후 초고화질 생성)'
+                    : 'Episode 01 Personalized 2K Webtoon Studio (Select Theme & Generate)'}
                 </h2>
                 <span className="px-2 py-0.5 rounded bg-amber-300/15 border border-amber-300/40 text-amber-200 text-[10px] font-mono font-bold">
-                  2048px 2K CANVAS
+                  {isKo ? '초고화질 캔버스' : '2048px 2K CANVAS'}
                 </span>
               </div>
               <p className="text-xs text-stone-400">
                 {isKo
-                  ? '나노바나나 프로 개별 8컷 원화와 대사 말풍선이 하나의 길쭉한 2K 웹툰 이미지로 합성됩니다'
-                  : '8 distinct NanoBanana Pro panels & comic speech bubbles stitched into one continuous 2K vertical webtoon image'}
+                  ? '원하는 네이버 웹툰 그림체 테마(10종)와 언어(국문/영문)를 먼저 선택한 뒤 웹툰을 생성하세요'
+                  : 'First choose your preferred Naver Webtoon art style (10 themes) and language (EN/KO), then generate your 2K webtoon'}
               </p>
             </div>
           </div>
@@ -821,7 +900,7 @@ export const WebtoonModal: React.FC = () => {
                     : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
-                🇺🇸 EN
+                {isKo ? '영어' : 'EN'}
               </button>
               <button
                 onClick={() => handleToggleLanguage('ko')}
@@ -831,44 +910,65 @@ export const WebtoonModal: React.FC = () => {
                     : 'text-stone-400 hover:text-stone-200'
                 }`}
               >
-                🇰🇷 한국어
+                {isKo ? '한국어' : 'KO'}
               </button>
             </div>
 
-            <button
-              onClick={() => setShowPromptDetails(!showPromptDetails)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
-                showPromptDetails
-                  ? 'bg-stone-800 border-amber-300/50 text-amber-200'
-                  : 'bg-stone-900 border-white/10 text-stone-300 hover:bg-stone-800'
-              }`}
-            >
-              {showPromptDetails ? (
-                <>
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>{isKo ? '웹툰 이미지 보기' : 'View 2K Webtoon'}</span>
-                </>
-              ) : (
-                <>
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>{isKo ? '8컷 프롬프트 명세' : '8-Cut Prompts'}</span>
-                </>
-              )}
-            </button>
+            {generatedEpisode && (
+              <button
+                onClick={() => setShowPromptDetails(!showPromptDetails)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition cursor-pointer ${
+                  showPromptDetails
+                    ? 'bg-stone-800 border-amber-300/50 text-amber-200'
+                    : 'bg-stone-900 border-white/10 text-stone-300 hover:bg-stone-800'
+                }`}
+              >
+                {showPromptDetails ? (
+                  <>
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>{isKo ? '웹툰 이미지 보기' : 'View 2K Webtoon'}</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>{isKo ? '8컷 연출 명세' : '8-Cut Prompts'}</span>
+                  </>
+                )}
+              </button>
+            )}
 
             <button
-              onClick={handleDownload2KImage}
-              disabled={!stitched2KDataUrl || stitchingCanvas}
+              onClick={() => handleGenerateWithSelectedTheme()}
+              disabled={generatingWebtoon || stitchingCanvas}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-amber-300 hover:bg-amber-200 disabled:opacity-50 text-stone-950 text-xs font-bold shadow transition cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5" />
               <span>
-                {isKo ? '2K 통짜 웹툰 PNG 저장' : 'Download 2K Webtoon PNG'}
+                {stitched2KDataUrl
+                  ? isKo
+                    ? '선택 테마로 다시 생성'
+                    : 'Generate with Selected Theme'
+                  : isKo
+                    ? '선택 테마로 웹툰 생성'
+                    : 'Generate 2K Webtoon'}
               </span>
             </button>
 
+            {stitched2KDataUrl && (
+              <button
+                onClick={handleDownload2KImage}
+                disabled={!stitched2KDataUrl || stitchingCanvas}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-amber-300/40 text-amber-200 text-xs font-bold shadow transition cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>
+                  {isKo ? '초고화질 PNG 저장' : 'Download 2K PNG'}
+                </span>
+              </button>
+            )}
+
             <button
-              onClick={() => setIsWebtoonModalOpen(false)}
+              onClick={handleReturnTo3DGame}
               className="p-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 border border-white/10 text-stone-400 hover:text-white cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -879,26 +979,31 @@ export const WebtoonModal: React.FC = () => {
         {/* Body: Left Style Selector (10 Naver Webtoon Styles + Original 3D) | Right 2K Vertical Scroll Viewer */}
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           {/* Left Sidebar: 10 Naver Webtoon Art Styles + Original 3D */}
-          <div className="w-full lg:w-[340px] bg-stone-950/70 border-b lg:border-b-0 lg:border-r border-white/10 p-3.5 overflow-y-auto shrink-0 space-y-2">
-            <div className="flex items-center justify-between px-1 pb-1">
-              <span className="text-xs font-bold text-stone-300">
+          <div className="w-full lg:w-[340px] bg-stone-950/70 border-b lg:border-b-0 lg:border-r border-white/10 p-3.5 overflow-y-auto shrink-0 space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-xs font-bold text-stone-200">
                 {isKo
-                  ? '네이버 웹툰 그림체 10종 + 원본 3D'
-                  : '10 Naver Webtoon Styles + Original 3D'}
+                  ? '1단계 · 웹툰 그림체 테마 선택 (11종)'
+                  : 'Step 1 · Select Webtoon Theme (11 Styles)'}
               </span>
-              <button
-                onClick={() =>
-                  generateWebtoonEpisode(activePreset.backendStyleId, lang)
-                }
-                disabled={generatingWebtoon}
-                className="inline-flex items-center gap-1 text-[11px] text-amber-200 hover:text-amber-100 cursor-pointer"
-              >
-                <RefreshCw
-                  className={`w-3 h-3 ${generatingWebtoon ? 'animate-spin' : ''}`}
-                />
-                <span>{isKo ? '재생성' : 'Regenerate'}</span>
-              </button>
+              <span className="text-[10px] font-mono text-amber-300">
+                {isKo ? '클릭하여 선택' : 'Click to select'}
+              </span>
             </div>
+
+            {/* Primary Generate CTA inside Left Sidebar after selecting a theme */}
+            <button
+              onClick={() => handleGenerateWithSelectedTheme()}
+              disabled={generatingWebtoon || stitchingCanvas}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-300 via-amber-200 to-amber-300 hover:from-amber-200 hover:to-amber-100 disabled:opacity-50 text-stone-950 text-xs font-extrabold shadow-lg flex items-center justify-center gap-2 transition cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 shrink-0" />
+              <span className="truncate">
+                {isKo
+                  ? `✨ '${activePreset.nameKo}' 테마로 생성하기`
+                  : `✨ Generate with '${activePreset.nameEn}'`}
+              </span>
+            </button>
 
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
               {TEN_NAVER_STYLES.map((preset) => {
@@ -910,7 +1015,7 @@ export const WebtoonModal: React.FC = () => {
                     disabled={generatingWebtoon}
                     className={`w-full text-left p-2 rounded-xl border transition flex items-center gap-2.5 cursor-pointer ${
                       isSelected
-                        ? 'bg-stone-800/95 border-amber-300/70 shadow-md'
+                        ? 'bg-stone-800/95 border-amber-300/80 shadow-md ring-1 ring-amber-300/30'
                         : 'bg-stone-900/70 hover:bg-stone-900 border-white/10'
                     }`}
                   >
@@ -925,7 +1030,10 @@ export const WebtoonModal: React.FC = () => {
                           {isKo ? preset.nameKo : preset.nameEn}
                         </span>
                         {isSelected && (
-                          <Check className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-300/20 text-amber-200 text-[9px] font-bold shrink-0">
+                            <Check className="w-2.5 h-2.5" />
+                            {isKo ? '선택됨' : 'Selected'}
+                          </span>
                         )}
                       </div>
                       <div className="text-[10px] text-amber-200/90 truncate">
@@ -941,20 +1049,80 @@ export const WebtoonModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Right Main Viewport: Continuous 2K Stitched Vertical Webtoon Image */}
+          {/* Right Main Viewport: Theme Selector Launcher (before generation) OR 2K Stitched Vertical Webtoon Image */}
           <div className="flex-1 overflow-y-auto bg-[#0f0e0d] p-4 sm:p-6 flex flex-col items-center">
             {generatingWebtoon || stitchingCanvas ? (
               <div className="my-auto flex flex-col items-center gap-3 py-16 text-center">
                 <RefreshCw className="w-8 h-8 text-amber-300 animate-spin" />
                 <div className="text-sm font-bold text-stone-100">
                   {isKo
-                    ? '2K (2048px) 초고화질 통짜 세로 웹툰 및 말풍선 합성 중...'
-                    : 'Compositing 2K (2048px) continuous vertical webtoon & speech bubbles...'}
+                    ? `'${activePreset.nameKo}' 테마로 초고화질 통짜 세로 웹툰 및 말풍선 합성 중...`
+                    : `Compositing 2K (2048px) continuous vertical webtoon in '${activePreset.nameEn}' style...`}
                 </div>
                 <div className="text-xs text-stone-400">
                   {isKo
-                    ? `${activePreset.nameKo} 스타일 및 플레이 기록 반영 중`
-                    : `Applying ${activePreset.nameEn} grading & verified story log`}
+                    ? `${activePreset.refWorkKo} 감성 후보정 및 플레이 기록 반영 중`
+                    : `Applying ${activePreset.refWorkEn} grading & verified story log`}
+                </div>
+              </div>
+            ) : !stitched2KDataUrl ? (
+              /* Blank Webtoon Canvas with Big Centered "Generate Webtoon" Button */
+              <div className="w-full max-w-[560px] min-h-[520px] my-auto rounded-2xl border-2 border-dashed border-amber-300/45 bg-gradient-to-b from-stone-900/95 via-stone-950/95 to-stone-900/95 shadow-2xl p-6 sm:p-10 flex flex-col items-center justify-center text-center gap-6 relative overflow-hidden">
+                {/* Subtle blank webtoon panel guide lines */}
+                <div className="pointer-events-none absolute inset-5 rounded-xl border border-white/5 flex flex-col justify-between opacity-35">
+                  <div className="h-24 border-b border-dashed border-white/10" />
+                  <div className="h-24 border-t border-dashed border-white/10" />
+                </div>
+
+                {/* Selected Style Badge */}
+                <div className="relative z-10 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-300/15 border border-amber-300/40 text-amber-200 text-xs font-mono font-bold">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>
+                    {isKo
+                      ? '선택된 웹툰 스타일 · 빈 웹툰 캔버스'
+                      : 'SELECTED WEBTOON STYLE · BLANK CANVAS'}
+                  </span>
+                </div>
+
+                {/* Selected Style Thumbnail & Info */}
+                <div className="relative z-10 flex flex-col items-center gap-3 max-w-md">
+                  <img
+                    src={activePreset.previewUrl}
+                    alt={isKo ? activePreset.nameKo : activePreset.nameEn}
+                    className="w-28 h-28 sm:w-32 sm:h-32 rounded-2xl object-cover border-2 border-amber-300/60 shadow-xl"
+                  />
+                  <div className="space-y-1">
+                    <h3 className="text-lg sm:text-xl font-extrabold text-stone-100">
+                      {isKo ? activePreset.nameKo : activePreset.nameEn}
+                    </h3>
+                    <div className="text-xs font-semibold text-amber-200/90">
+                      {isKo ? activePreset.refWorkKo : activePreset.refWorkEn}
+                    </div>
+                    <p className="text-xs text-stone-300 leading-relaxed pt-1">
+                      {isKo ? activePreset.descKo : activePreset.descEn}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Huge Unmistakable Centered "Generate Webtoon" CTA Button */}
+                <div className="relative z-10 w-full max-w-sm pt-1 flex flex-col items-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateWithSelectedTheme()}
+                    className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-300 via-amber-200 to-amber-300 hover:from-amber-200 hover:to-amber-100 text-stone-950 text-sm sm:text-base font-extrabold shadow-[0_0_35px_rgba(252,211,77,0.4)] hover:shadow-[0_0_45px_rgba(252,211,77,0.65)] hover:scale-[1.02] active:scale-[0.99] transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-5 h-5 shrink-0" />
+                    <span>
+                      {isKo
+                        ? `✨ 웹툰 생성하기 (${lang === 'ko' ? '국문' : '영문'})`
+                        : `✨ Generate 2K Webtoon (${lang.toUpperCase()})`}
+                    </span>
+                  </button>
+                  <span className="text-[11px] text-stone-400">
+                    {isKo
+                      ? '좌측 목록에서 다른 웹툰 그림체를 선택한 뒤 이 버튼을 눌러 생성할 수 있습니다'
+                      : 'Pick any style on the left, then click this button to generate your 8-cut 2K webtoon'}
+                  </span>
                 </div>
               </div>
             ) : showPromptDetails && generatedEpisode ? (
@@ -962,7 +1130,7 @@ export const WebtoonModal: React.FC = () => {
                 <div className="p-4 rounded-xl bg-stone-900 border border-white/10">
                   <h3 className="text-sm font-bold text-amber-200">
                     {isKo
-                      ? '나노바나나 프로 8컷 개별 이미지 프롬프트 & 대사 명세'
+                      ? '나노바나나 프로 8컷 개별 이미지 연출 및 대사 명세'
                       : 'NanoBanana Pro 8-Cut Distinct Image Prompts & Script'}
                   </h3>
                   <p className="text-xs text-stone-400 mt-1">
@@ -976,19 +1144,23 @@ export const WebtoonModal: React.FC = () => {
                   >
                     <img
                       src={DISTINCT_CUT_URLS[idx % DISTINCT_CUT_URLS.length]}
-                      alt={`Cut ${cut.cutNumber}`}
+                      alt={isKo ? `제${cut.cutNumber}컷` : `Cut ${cut.cutNumber}`}
                       className="w-28 h-20 rounded-lg object-cover border border-white/15 shrink-0"
                     />
                     <div className="space-y-1 text-xs min-w-0 flex-1">
                       <div className="font-bold text-stone-100">
-                        CUT 0{cut.cutNumber} · {cut.sceneTitle} ({cut.actLabel})
+                        {isKo
+                          ? `제${cut.cutNumber}컷 · ${cut.sceneTitle} (${cut.actLabel})`
+                          : `CUT 0${cut.cutNumber} · ${cut.sceneTitle} (${cut.actLabel})`}
                       </div>
                       <div className="text-stone-300">{cut.narratorCaption}</div>
                       <div className="text-amber-200 font-medium">
-                        {cut.speaker}: &ldquo;{cut.dialogue}&rdquo;
+                        {speakerLabelForCut(cut.speaker)}: &ldquo;{cut.dialogue}&rdquo;
                       </div>
                       <div className="text-[11px] text-stone-500 font-mono break-all pt-1">
-                        Shot: {cut.cameraShotId} · SFX: {cut.sfxText} ({cut.sfxSub}) · Inner: {cut.innerMonologue}
+                        {isKo
+                          ? `효과음: ${cut.sfxText} (${cut.sfxSub}) · 속마음: ${cut.innerMonologue}`
+                          : `Shot: ${cut.cameraShotId} · SFX: ${cut.sfxText} (${cut.sfxSub}) · Inner: ${cut.innerMonologue}`}
                       </div>
                     </div>
                   </div>
@@ -996,30 +1168,172 @@ export const WebtoonModal: React.FC = () => {
               </div>
             ) : stitched2KDataUrl ? (
               <div className="w-full max-w-[780px] flex flex-col items-center">
-                <div className="w-full mb-3 px-4 py-2 rounded-xl bg-stone-900/90 border border-white/10 flex items-center justify-between text-xs text-stone-300">
+                <div className="w-full mb-3 px-4 py-2.5 rounded-xl bg-stone-900/90 border border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-300">
                   <span>
                     {isKo
-                      ? '하나로 이어진 2K (2048px) 통짜 웹툰 이미지입니다. 스크롤하여 감상하거나 우클릭/다운로드할 수 있습니다.'
-                      : 'Single continuous 2K (2048px) stitched webtoon image with embedded speech bubbles.'}
+                      ? `현재 테마: ${activePreset.nameKo} · 다른 테마를 선택한 뒤 [선택 테마로 다시 생성]을 누르면 새 그림체로 합성됩니다.`
+                      : `Active Style: ${activePreset.nameEn} · Select any style on the left and click [Generate with Selected Theme] to switch.`}
                   </span>
-                  <span className="font-mono text-amber-200 font-bold shrink-0 ml-2">
-                    {worldState?.endingReached !== 'NONE'
-                      ? worldState?.endingReached
-                      : 'LIVE EP.01'}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setStitched2KDataUrl(null)}
+                      className="px-2.5 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 border border-amber-300/35 text-amber-200 text-[11px] font-bold cursor-pointer"
+                    >
+                      {isKo ? '테마 선택 화면으로' : 'Change Theme'}
+                    </button>
+                    <span className="font-mono text-amber-200 font-bold">
+                      {worldState?.endingReached === 'SHOWTIME_SAVED'
+                        ? isKo
+                          ? '완전체 무대 결말'
+                          : 'ENDING A: FULL STAGE'
+                        : worldState?.endingReached === 'UNPLUGGED_ENCORE'
+                          ? isKo
+                            ? '어쿠스틱 무대 결말'
+                            : 'ENDING B: ACOUSTIC STAGE'
+                          : isKo
+                            ? '실시간 제1화'
+                            : 'LIVE EP.01'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Single Continuous Stitched 2K Webtoon Image */}
                 <img
                   src={stitched2KDataUrl}
-                  alt="FANVERSE 2K Continuous Vertical Webtoon"
+                  alt="FANVERSE Webtoon"
                   className="w-full h-auto rounded-2xl shadow-2xl border border-white/15 select-auto"
                 />
+
+                {/* Post-Webtoon Next Steps Card: Return to 3D Stage, Continue Alternative Route, or New Episode */}
+                <div className="w-full mt-6 p-5 rounded-2xl bg-gradient-to-br from-stone-900 via-stone-900/95 to-stone-950 border border-amber-300/35 shadow-xl space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-amber-300 font-bold">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>
+                          {isKo
+                            ? '웹툰 감상 이후 스토리 이어하기'
+                            : 'WHAT HAPPENS NEXT IN 3D BACKSTAGE?'}
+                        </span>
+                      </div>
+                      <h3 className="text-sm sm:text-base font-bold text-stone-100 mt-1">
+                        {isKo
+                          ? '원래 3D 게임으로 돌아가 다른 선택지나 멀티 엔딩 루트를 이어서 플레이해보세요!'
+                          : 'Return to the 3D Backstage to continue your story or unlock the alternate ending route!'}
+                      </h3>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full bg-amber-300/15 border border-amber-300/30 text-[11px] text-amber-200 font-mono shrink-0">
+                      {worldState?.endingReached &&
+                      worldState.endingReached !== 'NONE'
+                        ? isKo
+                          ? '멀티 엔딩 달성 완료 · 추가 루트 개방'
+                          : 'ENDING UNLOCKED · BRANCH OPEN'
+                        : isKo
+                          ? '스토리 진행 중 · 이어하기 가능'
+                          : 'LIVE STORY IN PROGRESS'}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-stone-300 leading-relaxed">
+                    {isKo
+                      ? '현재까지의 대화와 호감도·신뢰도, 단서 상태가 3D 대기실에 그대로 보존되어 있습니다. 바로 3D 대기실로 복귀해 자유롭게 탐색하거나, 아직 경험하지 않은 다른 엔딩 루트(스타라이트 커스텀 마이크 복구 vs 언플러그드 어쿠스틱 라이브)로 이야기를 이어갈 수 있습니다.'
+                      : 'Your current dialogue history, affinity/trust meters, and discovered clues are preserved in the 3D backstage. Jump right back into the 3D room, branch immediately into the alternate stage route (Starlight Mic Recovery vs. Unplugged Acoustic Encore), or start a fresh Episode 01 run.'}
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                    <button
+                      onClick={handleReturnTo3DGame}
+                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-300 hover:bg-amber-200 text-stone-950 text-xs font-bold shadow-md transition cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4 shrink-0" />
+                      <span>
+                        {isKo
+                          ? '원래 3D 게임으로 돌아가기'
+                          : 'Return to 3D Game (Keep Playing)'}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={handleContinueNextRouteIn3D}
+                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-stone-800 hover:bg-stone-700 border border-amber-300/40 text-amber-200 text-xs font-bold transition cursor-pointer"
+                    >
+                      <Compass className="w-4 h-4 shrink-0 text-amber-300" />
+                      <span>
+                        {!worldState?.acousticBackupApproved
+                          ? isKo
+                            ? '언플러그드 기타 루트 이어하기'
+                            : 'Continue: Unplugged Guitar Route'
+                          : !worldState?.hanaHasMicrophone
+                            ? isKo
+                              ? '스타라이트 마이크 루트 이어하기'
+                              : 'Continue: Starlight Mic Route'
+                            : isKo
+                              ? '3D 백스테이지 앙코르 대화 이어하기'
+                              : 'Continue: Backstage Encore Chat'}
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={handleStartNewEpisode}
+                      className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-stone-900 hover:bg-stone-800 border border-white/15 text-stone-300 hover:text-white text-xs font-semibold transition cursor-pointer"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        {isKo
+                          ? '새로운 제1화 처음부터 시작'
+                          : 'Start Fresh Episode 01'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : null}
+          </div>
+        </div>
+
+        {/* Persistent Bottom Footer inside Webtoon Modal so the user can always return or continue */}
+        <div className="px-5 py-3 bg-stone-950 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2 text-xs text-stone-400">
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+            <span>
+              {isKo
+                ? '웹툰 생성 후에도 언제든 원래 3D 백스테이지로 돌아가 다음 행동과 다른 루트를 이어서 진행할 수 있습니다.'
+                : 'You can return to the 3D Backstage anytime to continue your investigation or explore another ending route.'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleContinueNextRouteIn3D}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 border border-amber-300/35 text-amber-200 text-xs font-bold transition cursor-pointer"
+            >
+              <Compass className="w-3.5 h-3.5" />
+              <span>
+                {!worldState?.acousticBackupApproved
+                  ? isKo
+                    ? '다른 루트(어쿠스틱 무대)로 이어하기'
+                    : 'Branch to Unplugged Route'
+                  : !worldState?.hanaHasMicrophone
+                    ? isKo
+                      ? '다른 루트(스타라이트 마이크)로 이어하기'
+                      : 'Branch to Starlight Mic Route'
+                    : isKo
+                      ? '백스테이지 에필로그 이어하기'
+                      : 'Continue Backstage Epilogue'}
+              </span>
+            </button>
+            <button
+              onClick={handleReturnTo3DGame}
+              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-stone-950 text-xs font-bold shadow transition cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>
+                {isKo ? '원래 3D 게임으로 돌아가기' : 'Back to 3D Game'}
+              </span>
+            </button>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
