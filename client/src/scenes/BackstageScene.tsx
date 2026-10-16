@@ -374,7 +374,7 @@ function BackstageRoomModel({
   controlsRef: React.RefObject<any>;
   tagOpacityMode: 'translucent' | 'hidden';
 }) {
-  const { scene } = useGLTF('/models/backstage_room.glb');
+  const { scene } = useGLTF('/models/backstage_room.glb?v=restore');
   const lang = useGameStore((s) => s.lang);
   const selectedTarget = useGameStore((s) => s.selectedTarget);
   const hoveredTarget = useGameStore((s) => s.hoveredTarget);
@@ -980,18 +980,26 @@ function BackstageRoomModel({
   );
 }
 
-function RoomLoadingFallback({ lang }: { lang: 'en' | 'ko' }) {
+function RoomLoadingFallback({
+  lang,
+  errorMsg,
+}: {
+  lang: 'en' | 'ko';
+  errorMsg?: string | null;
+}) {
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[8.4, 6.8]} />
         <meshStandardMaterial color="#2b2622" roughness={0.65} />
       </mesh>
-      <Html center position={[0, 1.35, 0]}>
+      <Html center position={[0, 1.35, 0]} zIndexRange={[5, 0]}>
         <div className="px-4 py-2 rounded-full bg-stone-950/85 border border-amber-300/40 text-amber-200 text-xs font-medium whitespace-nowrap shadow-xl backdrop-blur-md">
-          {lang === 'ko'
-            ? '✨ 3D 백스테이지 대기실 모델을 불러오는 중...'
-            : '✨ Loading 3D Backstage Dressing Room...'}
+          {errorMsg
+            ? `3D Error: ${errorMsg}`
+            : lang === 'ko'
+              ? '✨ 3D 백스테이지 대기실 모델을 불러오는 중...'
+              : '✨ Loading 3D Backstage Dressing Room...'}
         </div>
       </Html>
     </group>
@@ -999,19 +1007,27 @@ function RoomLoadingFallback({ lang }: { lang: 'en' | 'ko' }) {
 }
 
 class SceneErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback: React.ReactNode },
-  { hasError: boolean }
+  { children: React.ReactNode; lang: 'en' | 'ko' },
+  { hasError: boolean; errorMsg: string | null }
 > {
-  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+  constructor(props: { children: React.ReactNode; lang: 'en' | 'ko' }) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorMsg: null };
   }
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(err: any) {
+    return {
+      hasError: true,
+      errorMsg: err instanceof Error ? err.message : String(err),
+    };
   }
   render() {
     if (this.state.hasError) {
-      return this.props.fallback;
+      return (
+        <RoomLoadingFallback
+          lang={this.props.lang}
+          errorMsg={this.state.errorMsg}
+        />
+      );
     }
     return this.props.children;
   }
@@ -1146,7 +1162,7 @@ export const BackstageScene: React.FC = () => {
           color="#ffe4b5"
         />
 
-        <SceneErrorBoundary fallback={<RoomLoadingFallback lang={lang} />}>
+        <SceneErrorBoundary lang={lang}>
           <React.Suspense fallback={<RoomLoadingFallback lang={lang} />}>
             <BackstageRoomModel
               worldState={worldState}
@@ -1179,4 +1195,4 @@ export const BackstageScene: React.FC = () => {
   );
 };
 
-useGLTF.preload('/models/backstage_room.glb');
+useGLTF.preload('/models/backstage_room.glb?v=restore');
