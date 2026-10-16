@@ -22,6 +22,7 @@ interface HotspotMeta {
   label: string;
   actionHint: string;
   position: [number, number, number];
+  floorPosition: [number, number, number];
   quickActionPrompt: string;
   completed?: boolean;
 }
@@ -31,89 +32,260 @@ export const CAMERA_RIG_PRESETS: Record<
   {
     pos: [number, number, number];
     target: [number, number, number];
-    label: string;
     labelEn: string;
     labelKo: string;
   }
 > = {
+  // Average human eye-level (Y = 1.68m) stepped back (Z = 5.15m) for a clear, natural full-room perspective
   WIDE_ESTABLISHING: {
-    pos: [0.15, 2.35, 3.85],
-    target: [-0.15, 1.15, -0.85],
-    label: 'Full Backstage',
-    labelEn: 'Full Backstage',
-    labelKo: '전체 대기실',
+    pos: [0.0, 1.68, 5.15],
+    target: [0.0, 1.25, -0.85],
+    labelEn: 'Eye-Level Wide',
+    labelKo: '아이레벨 전체 뷰',
   },
   HANA_CLOSEUP: {
-    pos: [-0.75, 1.55, 0.45],
-    target: [-1.75, 1.38, -0.65],
-    label: 'Hana (Vocal)',
+    pos: [-0.85, 1.60, 1.35],
+    target: [-1.95, 1.42, -0.55],
     labelEn: 'Hana (Vocal)',
     labelKo: '하나 (보컬)',
   },
   JIHO_BRIEFING: {
-    pos: [0.55, 1.58, -0.65],
-    target: [1.35, 1.45, -2.05],
-    label: 'Jiho (Director)',
+    pos: [0.55, 1.64, 0.35],
+    target: [1.55, 1.48, -1.85],
     labelEn: 'Jiho (Director)',
-    labelKo: '지호 (감독)',
+    labelKo: '지호 (디렉터)',
   },
   COFFEE_TABLE_CLUE: {
-    pos: [0.25, 1.45, 1.45],
-    target: [0.25, 0.45, 0.0],
-    label: 'Cue Sheet Note',
-    labelEn: 'Cue Sheet Note',
-    labelKo: '진행표 메모',
+    pos: [0.15, 1.52, 1.85],
+    target: [1.05, 0.45, 0.15],
+    labelEn: 'Cue Sheet Table',
+    labelKo: '큐시트 테이블',
   },
   VANITY_CARD_DISCOVERY: {
-    pos: [-1.45, 1.42, -0.15],
-    target: [-2.75, 0.95, -0.55],
-    label: 'Vanity & Keycard',
+    pos: [-1.85, 1.52, 0.65],
+    target: [-3.65, 1.05, -0.55],
     labelEn: 'Vanity & Keycard',
     labelKo: '화장대 & 카드키',
   },
   LOCKER_RFID_SCAN: {
-    pos: [1.25, 1.48, -0.45],
-    target: [2.65, 1.15, -1.65],
-    label: 'Security Locker',
+    pos: [1.55, 1.58, 0.45],
+    target: [3.65, 1.18, -1.35],
     labelEn: 'Security Locker',
     labelKo: '보안 장비함',
   },
   MICROPHONE_REVEAL: {
-    pos: [1.65, 1.35, -0.85],
-    target: [2.62, 1.08, -1.58],
-    label: 'Custom Mic',
+    pos: [2.15, 1.42, -0.15],
+    target: [3.62, 1.05, -1.33],
     labelEn: 'Custom Mic',
-    labelKo: '전용 마이크',
+    labelKo: '커스텀 마이크',
   },
   LOUNGE_SOFA_IEM: {
-    pos: [-0.45, 1.45, 2.25],
-    target: [0.25, 0.65, 0.95],
-    label: 'Lounge Sofa',
+    pos: [0.25, 1.58, 2.35],
+    target: [2.25, 0.65, 0.45],
     labelEn: 'Lounge Sofa',
-    labelKo: '휴식 소파',
+    labelKo: '라운지 소파',
   },
   ACOUSTIC_GUITAR_CORNER: {
-    pos: [0.85, 1.25, 1.85],
-    target: [1.85, 0.68, 0.85],
-    label: 'Acoustic Guitar',
+    pos: [1.25, 1.48, 2.85],
+    target: [2.95, 0.68, 1.25],
     labelEn: 'Acoustic Guitar',
-    labelKo: '통기타',
+    labelKo: '어쿠스틱 기타',
   },
   STAGE_DOOR_OPENING: {
-    pos: [0.0, 1.55, -0.65],
+    pos: [0.0, 1.64, 0.85],
     target: [0.0, 1.35, -3.35],
-    label: 'Main Stage Door',
-    labelEn: 'Main Stage Door',
-    labelKo: '메인 무대 출입문',
+    labelEn: 'Stage Door',
+    labelKo: '무대 출입문',
   },
   FINALE_STAGE_BEAMS: {
-    pos: [-0.25, 1.85, 2.65],
+    pos: [0.0, 1.68, 3.85],
     target: [0.0, 1.35, -2.5],
-    label: 'Finale View',
     labelEn: 'Finale View',
-    labelKo: '마지막 장면',
+    labelKo: '피날레 뷰',
   },
 };
+
+export function getNextQuestGuide(
+  worldState: WorldState,
+  lang: 'en' | 'ko'
+): {
+  targetId: TargetId;
+  stepBadge: string;
+  instruction: string;
+} | null {
+  if (worldState.stageDoorOpen || worldState.episodeCompleted) {
+    return null;
+  }
+  if (worldState.hanaHasMicrophone || worldState.acousticBackupApproved) {
+    return {
+      targetId: 'stage_door',
+      stepBadge: lang === 'ko' ? 'FINAL STEP · 무대 출발' : 'FINAL STEP · STAGE READY',
+      instruction:
+        lang === 'ko'
+          ? '반짝이는 중앙 무대 출입문을 클릭해 컴백 쇼케이스를 시작하세요!'
+          : 'Click the glowing Center Stage Door to launch the comeback showcase!',
+    };
+  }
+  if (worldState.hasMicrophone && !worldState.hanaHasMicrophone) {
+    return {
+      targetId: 'npc_hana',
+      stepBadge: lang === 'ko' ? 'STEP 5 · 마이크 전달' : 'STEP 5 · HAND OVER MIC',
+      instruction:
+        lang === 'ko'
+          ? '하나(Hana)에게 회수한 커스텀 스타라이트 마이크를 건네주세요!'
+          : 'Hand the recovered custom Starlight Microphone to Hana!',
+    };
+  }
+  if (
+    worldState.lockerUnlocked &&
+    !worldState.hasMicrophone &&
+    !worldState.hanaHasMicrophone
+  ) {
+    return {
+      targetId: 'equipment_locker',
+      stepBadge: lang === 'ko' ? 'STEP 4 · 마이크 회수' : 'STEP 4 · RECOVER MIC',
+      instruction:
+        lang === 'ko'
+          ? '열린 우측 보안 장비함 안에서 커스텀 마이크를 꺼내세요!'
+          : 'Pick up the custom wireless microphone from inside the unlocked locker!',
+    };
+  }
+  if (worldState.hasAccessCard && !worldState.lockerUnlocked) {
+    return {
+      targetId: 'equipment_locker',
+      stepBadge: lang === 'ko' ? 'STEP 3 · 장비함 잠금 해제' : 'STEP 3 · UNLOCK LOCKER',
+      instruction:
+        lang === 'ko'
+          ? '우측 벽의 보안 장비함에 VIP 카드키를 태그해 문을 여세요!'
+          : 'Scan the VIP Access Card on the right-wall Security Equipment Locker!',
+    };
+  }
+  if (worldState.hanaTalked && !worldState.jihoTalked && !worldState.hasAccessCard) {
+    return {
+      targetId: 'npc_jiho',
+      stepBadge: lang === 'ko' ? 'STEP 2 · 디렉터 브리핑' : 'STEP 2 · ASK DIRECTOR JIHO',
+      instruction:
+        lang === 'ko'
+          ? '무대 디렉터 지호에게 마이크 보관 위치와 카드키 단서를 물어보세요!'
+          : 'Ask Stage Director Jiho where the microphone and VIP keycard were placed!',
+    };
+  }
+  if (!worldState.hasAccessCard && (worldState.hanaTalked || worldState.jihoTalked)) {
+    return {
+      targetId: 'access_card',
+      stepBadge: lang === 'ko' ? 'STEP 2 · VIP 카드키 획득' : 'STEP 2 · PICK UP VIP KEYCARD',
+      instruction:
+        lang === 'ko'
+          ? '좌측 할리우드 조명 화장대 위에서 반짝이는 VIP 스태프 카드키를 주우세요!'
+          : 'Pick up the glowing VIP Staff Access Card on the left vanity table!',
+    };
+  }
+  return {
+    targetId: 'npc_hana',
+    stepBadge: lang === 'ko' ? 'STEP 1 · 상황 파악' : 'STEP 1 · CHECK ON HANA',
+    instruction:
+      lang === 'ko'
+        ? '좌측 화장대 앞에 서 있는 리드 보컬 하나(Hana)를 클릭해 대화를 시작하세요!'
+        : 'Click Lead Vocalist Hana near the left vanity mirror to start!',
+  };
+}
+
+function QuestGuideBeacon3D({
+  position,
+  floorPosition,
+}: {
+  position: [number, number, number];
+  floorPosition: [number, number, number];
+}) {
+  const arrowGroupRef = useRef<THREE.Group>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+  const outerRingRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime();
+    if (arrowGroupRef.current) {
+      // Smooth vertical bounce + rotation so the golden 3D arrow sparkles and draws attention
+      arrowGroupRef.current.position.y =
+        position[1] + 0.34 + Math.sin(t * 3.8) * 0.09;
+      arrowGroupRef.current.rotation.y = t * 2.2;
+    }
+    if (ringRef.current) {
+      const pulse = 1.0 + Math.sin(t * 3.8) * 0.12;
+      ringRef.current.scale.set(pulse, pulse, 1);
+    }
+    if (outerRingRef.current) {
+      const wave = ((t * 0.85) % 1.0);
+      const s = 0.85 + wave * 0.75;
+      outerRingRef.current.scale.set(s, s, 1);
+      const mat = outerRingRef.current.material as THREE.MeshBasicMaterial;
+      if (mat) {
+        mat.opacity = (1.0 - wave) * 0.55;
+      }
+    }
+  });
+
+  return (
+    <group>
+      {/* 3D Bouncing Golden Pointer Arrow above the target */}
+      <group
+        ref={arrowGroupRef}
+        position={[position[0], position[1] + 0.34, position[2]]}
+      >
+        {/* Downward pointing cone tip */}
+        <mesh position={[0, -0.08, 0]} rotation={[Math.PI, 0, 0]}>
+          <coneGeometry args={[0.11, 0.22, 4]} />
+          <meshStandardMaterial
+            color="#fcd34d"
+            emissive="#f59e0b"
+            emissiveIntensity={2.4}
+            roughness={0.15}
+            metalness={0.8}
+          />
+        </mesh>
+        {/* Glowing diamond crystal crown above cone */}
+        <mesh position={[0, 0.11, 0]}>
+          <octahedronGeometry args={[0.075, 0]} />
+          <meshStandardMaterial
+            color="#fef3c7"
+            emissive="#fbbf24"
+            emissiveIntensity={3.2}
+            roughness={0.1}
+            metalness={0.9}
+          />
+        </mesh>
+        <pointLight color="#fbbf24" intensity={1.4} distance={2.2} />
+      </group>
+
+      {/* Sparkling Floor Ring Beacon at target base */}
+      <mesh
+        ref={ringRef}
+        position={[floorPosition[0], 0.022, floorPosition[2]]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <ringGeometry args={[0.34, 0.42, 36]} />
+        <meshBasicMaterial
+          color="#fbbf24"
+          transparent
+          opacity={0.75}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <mesh
+        ref={outerRingRef}
+        position={[floorPosition[0], 0.018, floorPosition[2]]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <ringGeometry args={[0.40, 0.46, 36]} />
+        <meshBasicMaterial
+          color="#fde68a"
+          transparent
+          opacity={0.4}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+    </group>
+  );
+}
 
 function CanvasScreenshotBridge({
   activeCameraPreset,
@@ -189,14 +361,13 @@ function BackstageRoomModel({
   tagOpacityMode: 'translucent' | 'hidden';
 }) {
   const { scene } = useGLTF('/models/backstage_room.glb');
+  const lang = useGameStore((s) => s.lang);
   const selectedTarget = useGameStore((s) => s.selectedTarget);
   const hoveredTarget = useGameStore((s) => s.hoveredTarget);
   const setSelectedTarget = useGameStore((s) => s.setSelectedTarget);
   const setHoveredTarget = useGameStore((s) => s.setHoveredTarget);
   const submitPlayerAction = useGameStore((s) => s.submitPlayerAction);
   const submittingAction = useGameStore((s) => s.submittingAction);
-  const lang = useGameStore((s) => s.lang);
-  const isKo = lang === 'ko';
 
   const clonedScene = useMemo(() => {
     const root = scene.clone(true);
@@ -242,7 +413,18 @@ function BackstageRoomModel({
     return list;
   }, [clonedScene]);
 
-  // Synchronize GLB props & rigged doors with authoritative WorldState
+  // Collect all rigged pivot nodes (`RIG_*`) for smooth real-time animation in useFrame
+  const rigNodes = useMemo(() => {
+    const map: Record<string, THREE.Object3D> = {};
+    clonedScene.traverse((obj) => {
+      if (obj.name.startsWith('RIG_')) {
+        map[obj.name] = obj;
+      }
+    });
+    return map;
+  }, [clonedScene]);
+
+  // Synchronize visibility of pickable GLB props with authoritative WorldState
   useEffect(() => {
     clonedScene.traverse((obj) => {
       if (obj.name === 'access_card') {
@@ -252,41 +434,130 @@ function BackstageRoomModel({
         obj.visible =
           !worldState.hasMicrophone && !worldState.hanaHasMicrophone;
       }
-      if (obj.name === 'RIG_locker_door') {
-        obj.rotation.y = worldState.lockerUnlocked ? -1.35 : -0.25;
-      }
-      if (obj.name === 'RIG_stage_door' || obj.name === 'stage_door') {
-        if (obj.name === 'RIG_stage_door') {
-          obj.rotation.y = worldState.stageDoorOpen ? 1.35 : 0.0;
-        }
-      }
-      if (obj.name === 'RIG_vanity_drawer') {
-        obj.position.z = worldState.mirrorInspected ? 0.48 : 0.33;
-      }
     });
   }, [
     clonedScene,
     worldState.hasAccessCard,
     worldState.hasMicrophone,
     worldState.hanaHasMicrophone,
-    worldState.lockerUnlocked,
-    worldState.stageDoorOpen,
-    worldState.mirrorInspected,
   ]);
 
-  // Dynamic See-Through Wall Occlusion in useFrame
+  // Dynamic See-Through Wall Occlusion + Smooth Rigged Furniture Animation in useFrame
   useFrame(({ camera }) => {
+    // 1. Animate all rigged doors & drawers smoothly (`RIG_*`)
+    const vanityActive =
+      hoveredTarget === 'vanity_table' ||
+      hoveredTarget === 'access_card' ||
+      hoveredTarget === 'vanity_mirror' ||
+      selectedTarget === 'vanity_table' ||
+      selectedTarget === 'access_card' ||
+      selectedTarget === 'vanity_mirror' ||
+      worldState.mirrorInspected;
+
+    const lockerHover =
+      hoveredTarget === 'equipment_locker' ||
+      hoveredTarget === 'microphone' ||
+      selectedTarget === 'equipment_locker' ||
+      selectedTarget === 'microphone';
+
+    const stageHover =
+      hoveredTarget === 'stage_door' || selectedTarget === 'stage_door';
+
+    const audioHover =
+      hoveredTarget === 'npc_jiho' || selectedTarget === 'npc_jiho';
+
+    if (rigNodes.RIG_locker_door) {
+      const targetRotY = worldState.lockerUnlocked
+        ? -1.42
+        : lockerHover
+          ? -0.52
+          : -0.15;
+      rigNodes.RIG_locker_door.rotation.y = THREE.MathUtils.lerp(
+        rigNodes.RIG_locker_door.rotation.y,
+        targetRotY,
+        0.12
+      );
+    }
+
+    if (rigNodes.RIG_stage_door) {
+      const targetRotL = worldState.stageDoorOpen
+        ? 1.38
+        : stageHover
+          ? 0.28
+          : 0.0;
+      rigNodes.RIG_stage_door.rotation.y = THREE.MathUtils.lerp(
+        rigNodes.RIG_stage_door.rotation.y,
+        targetRotL,
+        0.1
+      );
+    }
+    if (rigNodes.RIG_stage_door_R) {
+      const targetRotR = worldState.stageDoorOpen
+        ? -1.38
+        : stageHover
+          ? -0.28
+          : 0.0;
+      rigNodes.RIG_stage_door_R.rotation.y = THREE.MathUtils.lerp(
+        rigNodes.RIG_stage_door_R.rotation.y,
+        targetRotR,
+        0.1
+      );
+    }
+
+    if (rigNodes.RIG_vanity_drawer) {
+      // In glTF (+Y Up), local +Y in Blender maps to local -Z in Three.js
+      const targetZ = vanityActive ? -0.54 : -0.33;
+      rigNodes.RIG_vanity_drawer.position.z = THREE.MathUtils.lerp(
+        rigNodes.RIG_vanity_drawer.position.z,
+        targetZ,
+        0.12
+      );
+    }
+    if (rigNodes.RIG_vanity_door_L) {
+      const targetRot = vanityActive ? -0.85 : 0.0;
+      rigNodes.RIG_vanity_door_L.rotation.y = THREE.MathUtils.lerp(
+        rigNodes.RIG_vanity_door_L.rotation.y,
+        targetRot,
+        0.12
+      );
+    }
+    if (rigNodes.RIG_vanity_door_R) {
+      const targetRot = vanityActive ? 0.85 : 0.0;
+      rigNodes.RIG_vanity_door_R.rotation.y = THREE.MathUtils.lerp(
+        rigNodes.RIG_vanity_door_R.rotation.y,
+        targetRot,
+        0.12
+      );
+    }
+
+    if (rigNodes.RIG_audio_rack_door_L) {
+      const targetRot = audioHover ? -0.75 : 0.0;
+      rigNodes.RIG_audio_rack_door_L.rotation.y = THREE.MathUtils.lerp(
+        rigNodes.RIG_audio_rack_door_L.rotation.y,
+        targetRot,
+        0.12
+      );
+    }
+    if (rigNodes.RIG_audio_rack_door_R) {
+      const targetRot = audioHover ? 0.75 : 0.0;
+      rigNodes.RIG_audio_rack_door_R.rotation.y = THREE.MathUtils.lerp(
+        rigNodes.RIG_audio_rack_door_R.rotation.y,
+        targetRot,
+        0.12
+      );
+    }
+
+    // 2. Dynamic See-Through Wall Occlusion
     const camPos = camera.position;
     const focusPoint = controlsRef.current?.target
       ? (controlsRef.current.target as THREE.Vector3)
-      : new THREE.Vector3(0, 1.2, -0.6);
+      : new THREE.Vector3(0, 1.25, -0.85);
 
-    // Raycast from camera to focus point & key character positions to detect blocking walls
     const checkTargets = [
       focusPoint,
-      new THREE.Vector3(-1.75, 1.3, -0.65), // Hana
-      new THREE.Vector3(1.35, 1.3, -2.05), // Jiho
-      new THREE.Vector3(-0.45, 1.3, 0.35), // Protagonist
+      new THREE.Vector3(-1.95, 1.35, -0.55), // Hana
+      new THREE.Vector3(1.55, 1.35, -1.85), // Jiho
+      new THREE.Vector3(-0.65, 1.35, 0.65), // Protagonist
     ];
 
     const occludedSet = new Set<THREE.Object3D>();
@@ -307,7 +578,6 @@ function BackstageRoomModel({
       const n = mesh.name;
       let shouldFade = occludedSet.has(mesh);
 
-      // Positional boundary cutaway rules so walls behind the camera automatically become see-through
       if (n.startsWith('Ceiling') && camPos.y > 1.85) {
         shouldFade = true;
       }
@@ -349,7 +619,8 @@ function BackstageRoomModel({
   const resolveTargetId = (rawName: string): TargetId | null => {
     const n = rawName.toLowerCase();
     if (n.includes('hana')) return 'npc_hana';
-    if (n.includes('jiho')) return 'npc_jiho';
+    if (n.includes('jiho') || n.includes('audio') || n.includes('mixer'))
+      return 'npc_jiho';
     if (n.includes('access_card') || n.includes('vip')) return 'access_card';
     if (n.includes('mirror') || n.includes('bulb')) return 'vanity_mirror';
     if (n.includes('vanity') || n.includes('drawer') || n.includes('perfume'))
@@ -357,7 +628,7 @@ function BackstageRoomModel({
     if (n.includes('microphone') || n.includes('starlightmic'))
       return 'microphone';
     if (n.includes('locker') || n.includes('rfid')) return 'equipment_locker';
-    if (n.includes('guitar')) return 'acoustic_guitar';
+    if (n.includes('guitar') || n.includes('ukulele')) return 'acoustic_guitar';
     if (n.includes('stage_door') || n.includes('stagedoor') || n.includes('onair'))
       return 'stage_door';
     if (n.includes('sofa')) return 'lounge_sofa';
@@ -398,11 +669,14 @@ function BackstageRoomModel({
     document.body.style.cursor = 'auto';
   };
 
-  // Clean, non-overlapping interactive hotspots placed slightly above/beside targets so faces are never covered
-  const lang = useGameStore((s) => s.lang);
-  const isKo = lang === 'ko';
+  const nextQuest = useMemo(
+    () => getNextQuestGuide(worldState, lang),
+    [worldState, lang]
+  );
 
+  // Clean, non-overlapping interactive hotspots matched 1:1 with the new GLB coordinates
   const hotspots = useMemo<HotspotMeta[]>(() => {
+    const isKo = lang === 'ko';
     const list: HotspotMeta[] = [
       {
         id: 'npc_hana',
@@ -410,15 +684,16 @@ function BackstageRoomModel({
         actionHint: worldState.hasMicrophone
           ? isKo
             ? '마이크 건네주기'
-            : 'Hand Mic to Hana'
+            : 'Hand Over Mic'
           : isKo
             ? '대화하기'
             : 'Talk to Hana',
-        position: [-1.75, 1.92, -0.65],
+        position: [-1.95, 1.92, -0.55],
+        floorPosition: [-1.95, 0.0, -0.55],
         quickActionPrompt: worldState.hasMicrophone
           ? 'Hand the custom starlight microphone over to Hana so she can perform!'
           : 'Talk to Hana to comfort her and ask what happened to her custom starlight microphone.',
-        completed: worldState.hanaTalked || worldState.hanaHasMicrophone,
+        completed: worldState.hanaTalked && !worldState.hasMicrophone,
       },
       {
         id: 'npc_jiho',
@@ -429,8 +704,9 @@ function BackstageRoomModel({
             : 'Ask About Locker'
           : isKo
             ? '무대 준비 확인'
-            : 'Propose Unplugged',
-        position: [1.35, 1.98, -2.05],
+            : 'Check Stage Prep',
+        position: [1.55, 1.98, -1.85],
+        floorPosition: [1.55, 0.0, -1.85],
         quickActionPrompt: !worldState.jihoTalked
           ? 'Ask Jiho where the custom microphone was moved and how to unlock the equipment locker.'
           : 'Talk to Jiho and propose organizing an alternative unplugged acoustic performance using the backstage acoustic guitar.',
@@ -440,8 +716,8 @@ function BackstageRoomModel({
         id: 'access_card',
         label: worldState.hasAccessCard
           ? isKo
-            ? '화장대 테이블'
-            : 'Vanity Table'
+            ? '할리우드 화장대'
+            : 'Hollywood Vanity'
           : isKo
             ? 'VIP 스태프 카드키'
             : 'VIP Staff Keycard',
@@ -450,12 +726,13 @@ function BackstageRoomModel({
             ? '카드키 줍기'
             : 'Pick Up Keycard'
           : isKo
-            ? '화장대 조사'
+            ? '화장대 서랍 조사'
             : 'Inspect Vanity',
-        position: [-2.72, 1.32, -0.32],
+        position: [-3.58, 1.32, -0.35],
+        floorPosition: [-3.45, 0.0, -0.55],
         quickActionPrompt: !worldState.hasAccessCard
           ? 'Inspect the vanity table and pick up the holographic VIP Staff Access Card.'
-          : 'Inspect the Hollywood vanity mirror bulbs and acrylic makeup organizers closely.',
+          : 'Inspect the Hollywood vanity mirror bulbs and open the vanity drawer.',
         completed: worldState.hasAccessCard,
       },
       {
@@ -482,7 +759,8 @@ function BackstageRoomModel({
             : isKo
               ? '장비함 조사'
               : 'Inspect Locker',
-        position: [2.65, 1.95, -1.65],
+        position: [3.65, 1.98, -1.35],
+        floorPosition: [3.35, 0.0, -1.35],
         quickActionPrompt: !worldState.lockerUnlocked
           ? worldState.hasAccessCard
             ? 'Use the VIP Staff Access Card to unlock the equipment locker.'
@@ -503,8 +781,9 @@ function BackstageRoomModel({
             : 'Tune Guitar'
           : isKo
             ? '언플러그드 무대 제안'
-            : 'Propose Unplugged',
-        position: [1.85, 1.25, 0.85],
+            : 'Propose Acoustic Stage',
+        position: [2.95, 1.32, 1.25],
+        floorPosition: [2.95, 0.0, 1.25],
         quickActionPrompt: !worldState.guitarTuned
           ? 'Tune the backstage acoustic guitar on its stand and check its pickup resonance.'
           : 'Propose organizing an alternative unplugged acoustic performance using this tuned guitar with Jiho and Hana.',
@@ -522,6 +801,7 @@ function BackstageRoomModel({
               ? '출입문 상태 확인'
               : 'Check Stage Door',
         position: [0.0, 2.38, -3.25],
+        floorPosition: [0.0, 0.0, -2.85],
         quickActionPrompt: worldState.hanaHasMicrophone
           ? 'Open the stage entrance door and launch LUMINA’s comeback performance with Hana’s recovered microphone!'
           : worldState.acousticBackupApproved
@@ -531,7 +811,15 @@ function BackstageRoomModel({
       },
     ];
     return list;
-  }, [worldState, isKo]);
+  }, [worldState, lang]);
+
+  const activeQuestHotspot = useMemo(
+    () =>
+      nextQuest
+        ? hotspots.find((h) => h.id === nextQuest.targetId) ?? null
+        : null,
+    [nextQuest, hotspots]
+  );
 
   return (
     <group>
@@ -542,30 +830,38 @@ function BackstageRoomModel({
         onPointerOut={handlePointerOut}
       />
 
-      {/* Translucent See-Through In-World Nameplates (말풍선 이름표 반투명 투과) */}
+      {/* 3D Sparkling Golden Arrow & Floor Beacon on the Next Recommended Target */}
+      {activeQuestHotspot && (
+        <QuestGuideBeacon3D
+          position={activeQuestHotspot.position}
+          floorPosition={activeQuestHotspot.floorPosition}
+        />
+      )}
+
+      {/* Translucent See-Through In-World Nameplates + Sparkling Quest Arrow Indicator */}
       {tagOpacityMode !== 'hidden' &&
         hotspots.map((h) => {
           const isSelected = selectedTarget === h.id;
           const isHovered = hoveredTarget === h.id;
+          const isNextQuest = nextQuest?.targetId === h.id;
           const anyActive = Boolean(selectedTarget || hoveredTarget);
           const isReadyStage =
             h.id === 'stage_door' &&
             (worldState.hanaHasMicrophone || worldState.acousticBackupApproved);
 
-          // See-through opacity logic: 0.45 default, fades to 0.22 when another object is focused, 0.90 when hovered/selected
           const pillOpacity =
-            isSelected || isHovered
-              ? 'opacity-90 scale-105'
+            isSelected || isHovered || isNextQuest
+              ? 'opacity-95 scale-105'
               : anyActive
-                ? 'opacity-25 hover:opacity-85 scale-90'
-                : 'opacity-50 hover:opacity-90 scale-95';
+                ? 'opacity-30 hover:opacity-90 scale-90'
+                : 'opacity-60 hover:opacity-95 scale-95';
 
           return (
             <Html
               key={h.id}
               position={h.position}
               center
-              distanceFactor={7}
+              distanceFactor={7.2}
               zIndexRange={[10, 0]}
               style={{ pointerEvents: 'none' }}
             >
@@ -573,28 +869,41 @@ function BackstageRoomModel({
                 style={{ pointerEvents: 'auto' }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (isSelected) {
+                  if (isSelected || isNextQuest) {
+                    setSelectedTarget(h.id);
                     submitPlayerAction(h.quickActionPrompt, h.id);
                   } else {
                     setSelectedTarget(h.id);
                   }
                 }}
-                className={`group cursor-pointer select-none transition-all duration-200 ${pillOpacity}`}
+                className={`group flex flex-col items-center cursor-pointer select-none transition-all duration-200 ${pillOpacity}`}
               >
+                {/* Sparkling Bouncing Arrow Indicator for the Next Step ("다음 진행 위치 화살표 반짝임 안내") */}
+                {isNextQuest && (
+                  <div className="mb-1 flex flex-col items-center animate-bounce pointer-events-none">
+                    <div className="px-2 py-0.5 rounded-full bg-amber-300 text-stone-950 text-[9px] font-extrabold uppercase tracking-wider shadow-[0_0_16px_rgba(251,191,36,0.9)] border border-amber-100 whitespace-nowrap">
+                      ✨ {nextQuest?.stepBadge}
+                    </div>
+                    <div className="text-amber-300 text-sm leading-none drop-shadow-[0_0_10px_rgba(251,191,36,0.95)]">
+                      ▼
+                    </div>
+                  </div>
+                )}
+
                 <div
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full backdrop-blur-[3px] border transition-all ${
-                    isReadyStage
-                      ? 'bg-amber-950/60 border-amber-300/70 text-amber-100'
+                    isNextQuest || isReadyStage
+                      ? 'bg-amber-950/80 border-amber-300 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.45)]'
                       : isSelected
-                        ? 'bg-stone-900/75 border-amber-300/80 text-stone-100 shadow-md'
+                        ? 'bg-stone-900/80 border-amber-300/80 text-stone-100 shadow-md'
                         : h.completed
-                          ? 'bg-stone-900/35 border-emerald-400/40 text-stone-200'
-                          : 'bg-stone-950/38 border-white/20 text-stone-100 hover:border-amber-200/60'
+                          ? 'bg-stone-900/40 border-emerald-400/45 text-stone-200'
+                          : 'bg-stone-950/45 border-white/20 text-stone-100 hover:border-amber-200/60'
                   }`}
                 >
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
-                      isReadyStage
+                      isNextQuest || isReadyStage
                         ? 'bg-amber-300 animate-ping'
                         : h.completed
                           ? 'bg-emerald-400'
@@ -606,10 +915,10 @@ function BackstageRoomModel({
                   <span className="text-[11px] font-medium tracking-tight whitespace-nowrap drop-shadow">
                     {h.label}
                   </span>
-                  {(isSelected || isHovered) && (
+                  {(isSelected || isHovered || isNextQuest) && (
                     <span className="text-[10px] font-semibold text-amber-200 pl-1 border-l border-white/20 whitespace-nowrap">
                       {submittingAction
-                        ? isKo
+                        ? lang === 'ko'
                           ? '진행 중...'
                           : 'Acting...'
                         : h.actionHint}{' '}
@@ -628,7 +937,6 @@ function BackstageRoomModel({
 export const BackstageScene: React.FC = () => {
   const worldState = useGameStore((s) => s.worldState);
   const lang = useGameStore((s) => s.lang);
-  const isKo = lang === 'ko';
   const [activeCameraPreset, setActiveCameraPreset] =
     useState<CameraShotId | null>('WIDE_ESTABLISHING');
   const [tagOpacityMode, setTagOpacityMode] = useState<
@@ -639,7 +947,7 @@ export const BackstageScene: React.FC = () => {
   if (!worldState) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-[#181614] text-stone-300 text-sm">
-        {isKo
+        {lang === 'ko'
           ? '백스테이지 3D 대기실을 불러오는 중입니다...'
           : 'Loading 3D Backstage Green Room...'}
       </div>
@@ -674,7 +982,7 @@ export const BackstageScene: React.FC = () => {
                     : 'text-stone-300 hover:text-white hover:bg-white/10'
                 }`}
               >
-                {isKo ? preset.labelKo : preset.labelEn}
+                {lang === 'ko' ? preset.labelKo : preset.labelEn}
               </button>
             );
           })}
@@ -688,25 +996,25 @@ export const BackstageScene: React.FC = () => {
           }
           className="pointer-events-auto px-3 py-1.5 rounded-full bg-stone-950/55 backdrop-blur-md border border-white/10 text-[11px] text-stone-300 hover:text-white transition cursor-pointer shrink-0"
           title={
-            isKo
+            lang === 'ko'
               ? '말풍선 이름표 반투명 표시 / 숨기기'
-              : 'Toggle 3D translucent nameplates'
+              : 'Toggle translucent 3D labels / hide'
           }
         >
           {tagOpacityMode === 'translucent'
-            ? isKo
+            ? lang === 'ko'
               ? '이름표: 반투명 투과'
-              : 'Tags: See-Through'
-            : isKo
+              : 'Labels: See-Through'
+            : lang === 'ko'
               ? '이름표: 숨김'
-              : 'Tags: Hidden'}
+              : 'Labels: Hidden'}
         </button>
       </div>
 
       <Canvas
         shadows
         gl={{ preserveDrawingBuffer: true, antialias: true }}
-        camera={{ position: [0.15, 2.35, 3.85], fov: 42 }}
+        camera={{ position: [0.0, 1.68, 5.15], fov: 40 }}
       >
         <CanvasScreenshotBridge
           activeCameraPreset={activeCameraPreset}
@@ -714,13 +1022,13 @@ export const BackstageScene: React.FC = () => {
         />
 
         <color attach="background" args={['#181614']} />
-        <fog attach="fog" args={['#181614', 9, 24]} />
+        <fog attach="fog" args={['#181614', 10, 26]} />
 
         {/* Warm Architectural Interior Studio Lighting (No Cyberpunk) */}
-        <ambientLight intensity={0.75} color="#fff8f0" />
+        <ambientLight intensity={0.82} color="#fff8f0" />
 
         <SpotLight
-          position={[-2.2, 2.95, 1.2]}
+          position={[-2.2, 2.95, 1.6]}
           angle={0.85}
           penumbra={0.9}
           intensity={3.2}
@@ -728,7 +1036,7 @@ export const BackstageScene: React.FC = () => {
           castShadow
         />
         <SpotLight
-          position={[2.2, 2.95, 1.2]}
+          position={[2.2, 2.95, 1.6]}
           angle={0.85}
           penumbra={0.9}
           intensity={3.0}
@@ -736,15 +1044,15 @@ export const BackstageScene: React.FC = () => {
           castShadow
         />
         <pointLight
-          position={[-2.6, 1.5, -0.75]}
-          intensity={1.8}
+          position={[-3.2, 1.5, -0.55]}
+          intensity={1.9}
           distance={4.5}
           color="#ffdfa8"
         />
         <pointLight
           position={[0, 2.6, -2.2]}
-          intensity={worldState.stageDoorOpen ? 4.8 : 2.0}
-          distance={7.0}
+          intensity={worldState.stageDoorOpen ? 4.8 : 2.2}
+          distance={7.5}
           color="#ffe4b5"
         />
 
@@ -766,11 +1074,11 @@ export const BackstageScene: React.FC = () => {
         <OrbitControls
           ref={controlsRef}
           makeDefault
-          target={[-0.15, 1.15, -0.85]}
-          minPolarAngle={Math.PI / 6}
-          maxPolarAngle={Math.PI / 2.02}
+          target={[0.0, 1.25, -0.85]}
+          minPolarAngle={Math.PI / 5.5}
+          maxPolarAngle={Math.PI / 1.98}
           minDistance={1.2}
-          maxDistance={7.5}
+          maxDistance={9.0}
           enablePan={true}
         />
       </Canvas>

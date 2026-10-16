@@ -278,10 +278,12 @@ function drawRoundedRect(
 
 function wrapLines(
   ctx: CanvasRenderingContext2D,
-  text: string,
+  text: string | undefined | null,
   maxWidth: number
 ): string[] {
-  const words = text.split(/\s+/);
+  const safeText = (text ?? '').trim();
+  if (!safeText) return [''];
+  const words = safeText.split(/\s+/);
   const lines: string[] = [];
   let current = '';
 
@@ -295,7 +297,7 @@ function wrapLines(
     }
   }
   if (current) lines.push(current);
-  return lines.length > 0 ? lines : [text];
+  return lines.length > 0 ? lines : [safeText];
 }
 
 export const WebtoonModal: React.FC = () => {
@@ -409,14 +411,21 @@ export const WebtoonModal: React.FC = () => {
 
         // Main Title
         ctx.fillStyle = '#fafaf9';
-        ctx.font = '800 68px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
-        ctx.fillText(generatedEpisode.episodeTitle, PAD_X, 220);
+        ctx.font = '800 64px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+        ctx.fillText(
+          generatedEpisode.episodeSubtitle ||
+            (isKo
+              ? 'EP.01 — 쇼타임 10분 전, 사라진 메인 마이크'
+              : 'EP.01 — 10 Minutes to Showtime: The Missing Mic'),
+          PAD_X,
+          220
+        );
 
         // Subtitle
         ctx.fillStyle = '#a8a29e';
-        ctx.font = '500 34px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+        ctx.font = '500 32px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
         ctx.fillText(
-          `${generatedEpisode.subtitle}   |   2048px 2K Ultra HD Vertical Strip`,
+          `${isKo ? activePreset.descKo : activePreset.descEn}   |   2048px 2K Ultra HD Vertical Strip`,
           PAD_X,
           295
         );
@@ -579,7 +588,11 @@ export const WebtoonModal: React.FC = () => {
           // Top-left Cut Number & Timestamp Caption Box (Rectangular Webtoon Narration Box)
           ctx.font =
             '500 30px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
-          const narrationLines = wrapLines(ctx, cut.narration, PANEL_W - 220);
+          const narrationLines = wrapLines(
+            ctx,
+            cut.narratorCaption,
+            PANEL_W - 220
+          );
           const narBoxW = Math.min(PANEL_W - 100, 1460);
           const narBoxH = 86 + narrationLines.length * 44;
           const narX = panelX + 48;
@@ -596,7 +609,7 @@ export const WebtoonModal: React.FC = () => {
           ctx.font =
             'bold 24px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
           ctx.fillText(
-            `CUT 0${cut.cutNumber}  ·  ${cut.timestampBadge}  ·  ${cut.sceneTitle}`,
+            `CUT 0${cut.cutNumber}  ·  ${cut.actLabel}  ·  ${cut.sceneTitle}`,
             narX + 32,
             narY + 42
           );
@@ -669,11 +682,13 @@ export const WebtoonModal: React.FC = () => {
                   ? isKo
                     ? '지호 (JIHO)'
                     : 'JIHO'
-                  : cut.speaker === 'PROTAGONIST'
+                  : cut.speaker === 'FAN'
                     ? isKo
                       ? '주인공 매니저'
                       : 'MANAGER (YOU)'
-                    : cut.speaker;
+                    : isKo
+                      ? '내레이션'
+                      : 'NARRATOR';
 
             ctx.font =
               'bold 24px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
@@ -717,7 +732,10 @@ export const WebtoonModal: React.FC = () => {
           '600 30px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(
-          generatedEpisode.endingBanner,
+          generatedEpisode.authorComment ||
+            (isKo
+              ? 'To Be Continued — FANVERSE 1화 완결'
+              : 'To Be Continued — End of FANVERSE Episode 01'),
           W / 2,
           cursorY + 70
         );
@@ -948,7 +966,7 @@ export const WebtoonModal: React.FC = () => {
                       : 'NanoBanana Pro 8-Cut Distinct Image Prompts & Script'}
                   </h3>
                   <p className="text-xs text-stone-400 mt-1">
-                    {generatedEpisode.styleDescription}
+                    {generatedEpisode.authorComment}
                   </p>
                 </div>
                 {generatedEpisode.cuts.map((cut, idx) => (
@@ -963,15 +981,14 @@ export const WebtoonModal: React.FC = () => {
                     />
                     <div className="space-y-1 text-xs min-w-0 flex-1">
                       <div className="font-bold text-stone-100">
-                        CUT 0{cut.cutNumber} · {cut.sceneTitle} (
-                        {cut.timestampBadge})
+                        CUT 0{cut.cutNumber} · {cut.sceneTitle} ({cut.actLabel})
                       </div>
-                      <div className="text-stone-300">{cut.narration}</div>
+                      <div className="text-stone-300">{cut.narratorCaption}</div>
                       <div className="text-amber-200 font-medium">
                         {cut.speaker}: &ldquo;{cut.dialogue}&rdquo;
                       </div>
                       <div className="text-[11px] text-stone-500 font-mono break-all pt-1">
-                        Prompt: {cut.imagePrompt}
+                        Shot: {cut.cameraShotId} · SFX: {cut.sfxText} ({cut.sfxSub}) · Inner: {cut.innerMonologue}
                       </div>
                     </div>
                   </div>

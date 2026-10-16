@@ -21,8 +21,11 @@ import {
   Maximize2,
   Zap,
   Globe,
+  HelpCircle,
+  Sparkles,
+  ArrowRight,
 } from 'lucide-react';
-import { BackstageScene } from './scenes/BackstageScene';
+import { BackstageScene, getNextQuestGuide } from './scenes/BackstageScene';
 import { VerificationInspector } from './components/VerificationInspector';
 import { WebtoonModal } from './components/WebtoonModal';
 import { useGameStore } from './store/useGameStore';
@@ -54,6 +57,8 @@ export const App: React.FC = () => {
   const [soundOn, setSoundOn] = useState(true);
   const [voiceOn, setVoiceOn] = useState(false);
   const [hudMode, setHudMode] = useState<HudLayoutMode>('subtitle');
+  const [showGuideModal, setShowGuideModal] = useState(true);
+  const nextQuestGuide = getNextQuestGuide(worldState, lang);
 
   // Draggable HUD state
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({
@@ -562,6 +567,21 @@ export const App: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setShowGuideModal(true)}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
+              showGuideModal
+                ? 'bg-stone-800 border-amber-300/60 text-amber-200'
+                : 'bg-stone-900 border-white/10 text-stone-300 hover:bg-stone-800'
+            }`}
+            title={isKo ? '스토리 요약 및 게임 가이드 열기' : 'Open Story Synopsis & Game Guide'}
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-amber-300" />
+            <span className="hidden sm:inline">
+              {isKo ? '스토리·가이드' : 'Story & Guide'}
+            </span>
+          </button>
+
+          <button
             onClick={() => setIsDrawerOpen(!isDrawerOpen)}
             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
               isDrawerOpen
@@ -599,6 +619,151 @@ export const App: React.FC = () => {
       {/* Full-Screen 3D Interactive Stage */}
       <div className="relative flex-1 overflow-hidden">
         <BackstageScene />
+
+        {/* Sparkling Next-Step Guide Pill (Synchronized with 3D Bouncing Golden Arrow) */}
+        {nextQuestGuide && worldState?.endingReached === 'NONE' && !showGuideModal && (
+          <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 px-3 pointer-events-auto max-w-[95vw]">
+            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-stone-950/80 hover:bg-stone-950/95 backdrop-blur-md border border-amber-300/55 shadow-[0_6px_28px_rgba(0,0,0,0.65)] transition">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-300 text-stone-950 text-[10px] font-extrabold tracking-wider uppercase animate-pulse shrink-0">
+                <Sparkles className="w-3 h-3" />
+                {nextQuestGuide.stepBadge} · ▼
+              </span>
+              <span className="text-xs font-semibold text-amber-100 truncate max-w-[260px] sm:max-w-[420px]">
+                {nextQuestGuide.instruction}
+              </span>
+              <button
+                disabled={submittingAction}
+                onClick={() => submitPlayerAction(nextQuestGuide.prompt)}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-300/20 hover:bg-amber-300 text-amber-200 hover:text-stone-950 border border-amber-300/50 text-[11px] font-bold transition cursor-pointer disabled:opacity-50 shrink-0"
+                title={
+                  isKo
+                    ? '3D 공간의 반짝이는 화살표 위치를 클릭하거나 이 버튼을 눌러 다음 단계를 바로 진행합니다'
+                    : 'Click the sparkling 3D arrow in the room or click here to proceed immediately'
+                }
+              >
+                <span>{isKo ? '다음 진행' : 'Proceed'}</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Initial Screen Story Briefing & Quick Play Guide Overlay */}
+        {showGuideModal && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4 pointer-events-auto">
+            <div className="w-full max-w-xl rounded-2xl bg-[#191613]/95 border border-amber-300/40 shadow-[0_24px_80px_rgba(0,0,0,0.85)] overflow-hidden text-stone-100">
+              {/* Top Header */}
+              <div className="px-6 py-4 bg-stone-900/90 border-b border-white/10 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-300 text-stone-950 text-[11px] font-extrabold tracking-wider uppercase">
+                    EPISODE 01 BRIEFING
+                  </span>
+                  <h2 className="text-base sm:text-lg font-bold text-stone-100">
+                    {isKo
+                      ? '쇼케이스 5분 전 — 스토리 & 플레이 가이드'
+                      : 'Five Minutes Before Showtime — Story & Play Guide'}
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowGuideModal(false)}
+                  className="p-1.5 rounded-lg bg-stone-800/80 hover:bg-stone-700 text-stone-300 hover:text-white cursor-pointer"
+                  title={isKo ? '닫기' : 'Close'}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-5 text-xs sm:text-sm leading-relaxed">
+                {/* Short Story Explanation */}
+                <div className="p-4 rounded-xl bg-stone-900/80 border border-white/10 space-y-1.5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                    {isKo ? '📖 스토리 배경 (Story Synopsis)' : '📖 Story Synopsis'}
+                  </div>
+                  <p className="text-stone-200 leading-relaxed">
+                    {isKo ? (
+                      <>
+                        K-POP 걸그룹 <strong>루미나(LUMINA)</strong>의 컴백 쇼케이스 생방송 <strong>5분 전</strong>!
+                        리드 보컬 <strong>하나(Hana)</strong>의 커스텀 무선 마이크가 보안 장비함에 잠겨버렸습니다.
+                        당신은 루미나의 로드 매니저로서 <strong>VIP 카드키를 찾아 마이크를 회수(엔딩 A)</strong>하거나,
+                        무대 디렉터 <strong>지호(Jiho)와 어쿠스틱 기타 앙코르 무대를 편성(엔딩 B)</strong>해 쇼케이스를 구해야 합니다.
+                      </>
+                    ) : (
+                      <>
+                        It is <strong>5 minutes before showtime</strong> for K-POP group <strong>LUMINA&apos;s</strong> live comeback showcase!
+                        Lead vocalist <strong>Hana&apos;s</strong> custom wireless microphone is locked inside the security cabinet.
+                        As LUMINA&apos;s road manager, recover the VIP keycard and unlock her mic (<strong>Ending A</strong>), or coordinate an unplugged acoustic guitar stage with director <strong>Jiho</strong> (<strong>Ending B</strong>).
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                {/* 3-Step Game Guide */}
+                <div className="space-y-2.5">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                    {isKo ? '🎮 3단계 플레이 가이드 (How to Play)' : '🎮 3-Step Quick Play Guide'}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="p-3 rounded-xl bg-stone-900/65 border border-amber-300/25 space-y-1">
+                      <div className="font-bold text-amber-200 text-xs flex items-center gap-1.5">
+                        <span>1.</span>
+                        <span>{isKo ? '반짝이는 화살표 안내' : 'Follow Sparkling Arrow'}</span>
+                      </div>
+                      <p className="text-[11px] text-stone-300 leading-snug">
+                        {isKo
+                          ? '사람 눈높이(1.68m) 3D 뷰어에서 다음 진행 위치 위에 반짝이는 황금 화살표(▼ STEP)가 뜹니다. 화살표나 오브젝트를 클릭하세요.'
+                          : 'A sparkling golden arrow (▼ STEP) floats above the next required 3D target at human eye-level view. Click it to advance.'}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-stone-900/65 border border-white/10 space-y-1">
+                      <div className="font-bold text-stone-100 text-xs flex items-center gap-1.5">
+                        <span>2.</span>
+                        <span>{isKo ? '투명 자막 & 선택지' : 'Unobstructed Choices'}</span>
+                      </div>
+                      <p className="text-[11px] text-stone-300 leading-snug">
+                        {isKo
+                          ? '시야를 가리지 않는 하단 타이핑 자막과 번호 선택지(1·2·3·⚡)로 진행하거나, 드래그 핸들로 UI를 원하는 곳에 옮기세요.'
+                          : 'Use the transparent typewriter subtitles & numbered choice pills (1·2·3·⚡), or drag the HUD anywhere with your mouse.'}
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-stone-900/65 border border-white/10 space-y-1">
+                      <div className="font-bold text-stone-100 text-xs flex items-center gap-1.5">
+                        <span>3.</span>
+                        <span>{isKo ? '2K 10종 네이버 웹툰' : '2K 10-Style Webtoon'}</span>
+                      </div>
+                      <p className="text-[11px] text-stone-300 leading-snug">
+                        {isKo
+                          ? '플레이한 대사와 스토리를 케이팝 데몬 헌터스·여신강림 등 10가지 화풍의 2K 세로형 웹툰으로 즉시 변환·저장하세요.'
+                          : 'Convert your story into a 2K (2048px) vertical Naver Webtoon across 10 distinct art styles anytime.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer CTA */}
+              <div className="px-6 py-4 bg-stone-900/90 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                <span className="text-[11px] text-stone-400">
+                  {isKo
+                    ? '💡 팁: 마우스 드래그로 3D 카메라 회전 · 휠로 줌 · 상단 [스토리·가이드]로 언제든 다시 열기'
+                    : '💡 Tip: Drag to orbit 3D camera · Scroll to zoom · Re-open anytime via [Story & Guide]'}
+                </span>
+                <button
+                  onClick={() => setShowGuideModal(false)}
+                  className="px-5 py-2 rounded-xl bg-amber-300 hover:bg-amber-200 text-stone-950 font-extrabold text-xs sm:text-sm shadow-lg transition cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <span>
+                    {isKo ? '에피소드 01 시작하기' : 'Start Episode 01'}
+                  </span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Ending Banner */}
         {worldState && worldState.endingReached !== 'NONE' && (

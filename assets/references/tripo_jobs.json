@@ -1,0 +1,140 @@
+[
+  {
+    "name": "hana_character",
+    "response": {
+      "result": {
+        "_meta": {
+          "higgsfield/generationCapabilities": {
+            "predictVirality": true,
+            "termsOfUseConsent": false,
+            "waitForCompletion": false
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Submitted 1 job. If a widget is visible, it polls automatically \u2014 do not call job_status or show_generations as a follow-up poll. In text-only clients, use job_status with sync:true to poll for completion.\n- 779ae544-6912-4911-a064-11ef587d08c0"
+          },
+          {
+            "type": "text",
+            "text": "If the user requests a combined display of multiple generations, including jobs submitted through separate generate_* calls, collect all requested job IDs, wait for the complete set with jobs_wait, then call show_generation_by_ids with jobs: [{\"index\":0,\"job_id\":\"<first actual job ID>\"},{\"index\":1,\"job_id\":\"<second actual job ID>\"}, ...]. job_display accepts only one id: never pass ids to it or loop over it to show a group. Do not create an extra display when the existing generation widgets already satisfy the request."
+          }
+        ],
+        "structuredContent": {
+          "results": [
+            {
+              "id": "779ae544-6912-4911-a064-11ef587d08c0",
+              "type": "3d",
+              "status": "pending",
+              "model": "tripo_h3_1_image_to_3d",
+              "params": {
+                "prompt": "",
+                "reference_images": [
+                  "356a9a4b-71cd-4a98-9bf5-31817a248940"
+                ],
+                "texture": true,
+                "pbr": true,
+                "texture_quality": "detailed",
+                "geometry_quality": "detailed"
+              }
+            }
+          ]
+        }
+      },
+      "jsonrpc": "2.0",
+      "id": 100
+    }
+  },
+  {
+    "name": "jiho_character",
+    "response": {
+      "result": {
+        "_meta": {
+          "higgsfield/generationCapabilities": {
+            "predictVirality": true,
+            "termsOfUseConsent": false,
+            "waitForCompletion": false
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Submitted 1 job. If a widget is visible, it polls automatically \u2014 do not call job_status or show_generations as a follow-up poll. In text-only clients, use job_status with sync:true to poll for completion.\n- 7bb262b4-daa1-4221-a8bf-a32e6dc100bf"
+          },
+          {
+            "type": "text",
+            "text": "If the user requests a combined display of multiple generations, including jobs submitted through separate generate_* calls, collect all requested job IDs, wait for the complete set with jobs_wait, then call show_generation_by_ids with jobs: [{\"index\":0,\"job_id\":\"<first actual job ID>\"},{\"index\":1,\"job_id\":\"<second actual job ID>\"}, ...]. job_display accepts only one id: never pass ids to it or loop over it to show a group. Do not create an extra display when the existing generation widgets already satisfy the request."
+          }
+        ],
+        "structuredContent": {
+          "results": [
+            {
+              "id": "7bb262b4-daa1-4221-a8bf-a32e6dc100bf",
+              "type": "3d",
+              "status": "pending",
+              "model": "tripo_h3_1_image_to_3d",
+              "params": {
+                "prompt": "",
+                "reference_images": [
+                  "af6a37b2-c9a2-4974-8e4d-92483228b872"
+                ],
+                "texture": true,
+                "pbr": true,
+                "texture_quality": "detailed",
+                "geometry_quality": "detailed"
+              }
+            }
+          ]
+        }
+      },
+      "jsonrpc": "2.0",
+      "id": 101
+    }
+  },
+  {
+    "name": "protagonist_character",
+    "response": {
+      "result": {
+        "_meta": {
+          "higgsfield/generationCapabilities": {
+            "predictVirality": true,
+            "termsOfUseConsent": false,
+            "waitForCompletion": false
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Submitted 1 job. If a widget is visible, it polls automatically \u2014 do not call job_status or show_generations as a follow-up poll. In text-only clients, use job_status with sync:true to poll for completion.\n- bd0d2e32-d75e-468c-9729-34af6eefc4af"
+          },
+          {
+            "type": "text",
+            "text": "If the user requests a combined display of multiple generations, including jobs submitted through separate generate_* calls, collect all requested job IDs, wait for the complete set with jobs_wait, then call show_generation_by_ids with jobs: [{\"index\":0,\"job_id\":\"<first actual job ID>\"},{\"index\":1,\"job_id\":\"<second actual job ID>\"}, ...]. job_display accepts only one id: never pass ids to it or loop over it to show a group. Do not create an extra display when the existing generation widgets already satisfy the request."
+          }
+        ],
+        "structuredContent": {
+          "results": [
+            {
+              "id": "bd0d2e32-d75e-468c-9729-34af6eefc4af",
+              "type": "3d",
+              "status": "pending",
+              "model": "tripo_h3_1_image_to_3d",
+              "params": {
+                "prompt": "",
+                "reference_images": [
+                  "d32d3e36-b23d-4450-81e1-f32749d250a8"
+                ],
+                "texture": true,
+                "pbr": true,
+                "texture_quality": "detailed",
+                "geometry_quality": "detailed"
+              }
+            }
+          ]
+        }
+      },
+      "jsonrpc": "2.0",
+      "id": 102
+    }
+  }
+]
