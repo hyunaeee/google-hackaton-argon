@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.env
+.agents
+blender
+assets/build_backstage_scene.py
+*.log
+.DS_Store

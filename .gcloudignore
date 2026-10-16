@@ -1,0 +1,10 @@
+.git
+.gitignore
+node_modules/
+dist/
+blender/
+.agents/
+.env
+.env.*
+*.log
+.DS_Store
