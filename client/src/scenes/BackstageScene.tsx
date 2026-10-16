@@ -106,14 +106,15 @@ export const CAMERA_RIG_PRESETS: Record<
 };
 
 export function getNextQuestGuide(
-  worldState: WorldState,
+  worldState: WorldState | null | undefined,
   lang: 'en' | 'ko'
 ): {
   targetId: TargetId;
   stepBadge: string;
   instruction: string;
+  prompt: string;
 } | null {
-  if (worldState.stageDoorOpen || worldState.episodeCompleted) {
+  if (!worldState || worldState.stageDoorOpen || worldState.endingReached !== 'NONE') {
     return null;
   }
   if (worldState.hanaHasMicrophone || worldState.acousticBackupApproved) {
@@ -124,6 +125,7 @@ export function getNextQuestGuide(
         lang === 'ko'
           ? '반짝이는 중앙 무대 출입문을 클릭해 컴백 쇼케이스를 시작하세요!'
           : 'Click the glowing Center Stage Door to launch the comeback showcase!',
+      prompt: 'Open the stage door and start the comeback performance!',
     };
   }
   if (worldState.hasMicrophone && !worldState.hanaHasMicrophone) {
@@ -134,6 +136,7 @@ export function getNextQuestGuide(
         lang === 'ko'
           ? '하나(Hana)에게 회수한 커스텀 스타라이트 마이크를 건네주세요!'
           : 'Hand the recovered custom Starlight Microphone to Hana!',
+      prompt: 'Give the wireless microphone to Hana and sync her in-ear monitor.',
     };
   }
   if (
@@ -148,6 +151,7 @@ export function getNextQuestGuide(
         lang === 'ko'
           ? '열린 우측 보안 장비함 안에서 커스텀 마이크를 꺼내세요!'
           : 'Pick up the custom wireless microphone from inside the unlocked locker!',
+      prompt: 'Take the custom wireless microphone from inside the unlocked equipment locker.',
     };
   }
   if (worldState.hasAccessCard && !worldState.lockerUnlocked) {
@@ -158,6 +162,7 @@ export function getNextQuestGuide(
         lang === 'ko'
           ? '우측 벽의 보안 장비함에 VIP 카드키를 태그해 문을 여세요!'
           : 'Scan the VIP Access Card on the right-wall Security Equipment Locker!',
+      prompt: 'Use the VIP Access Card to unlock the security equipment locker.',
     };
   }
   if (worldState.hanaTalked && !worldState.jihoTalked && !worldState.hasAccessCard) {
@@ -168,6 +173,7 @@ export function getNextQuestGuide(
         lang === 'ko'
           ? '무대 디렉터 지호에게 마이크 보관 위치와 카드키 단서를 물어보세요!'
           : 'Ask Stage Director Jiho where the microphone and VIP keycard were placed!',
+      prompt: 'Ask Stage Director Jiho where the spare microphone or VIP access card is.',
     };
   }
   if (!worldState.hasAccessCard && (worldState.hanaTalked || worldState.jihoTalked)) {
@@ -178,6 +184,7 @@ export function getNextQuestGuide(
         lang === 'ko'
           ? '좌측 할리우드 조명 화장대 위에서 반짝이는 VIP 스태프 카드키를 주우세요!'
           : 'Pick up the glowing VIP Staff Access Card on the left vanity table!',
+      prompt: 'Inspect the vanity mirror and pick up the VIP Staff Access Card on the vanity table.',
     };
   }
   return {
@@ -187,6 +194,7 @@ export function getNextQuestGuide(
       lang === 'ko'
         ? '좌측 화장대 앞에 서 있는 리드 보컬 하나(Hana)를 클릭해 대화를 시작하세요!'
         : 'Click Lead Vocalist Hana near the left vanity mirror to start!',
+    prompt: 'Talk to Hana and calm her down before the show starts.',
   };
 }
 
